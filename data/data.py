@@ -2,6 +2,7 @@ import os
 import numpy as np
 from sklearn.datasets import fetch_california_housing
 from datetime import datetime, timedelta
+import pandas as pd
 
 def get_data(save_csv=True):
     """Load California housing dataset as pandas DataFrames"""
@@ -30,7 +31,7 @@ def get_data(save_csv=True):
         
     return X, y
 
-def simulate_inflation(X, y, annual_rate=0.03, current_date=datetime.now()):
+def simulate_inflation(X: pd.DataFrame, y: pd.Series, annual_rate=0.03, current_date=datetime.now()):
     """
     Simulate inflation using continuous compounding: A = P * e^(rt)
     
@@ -64,15 +65,32 @@ def simulate_inflation(X, y, annual_rate=0.03, current_date=datetime.now()):
     
     return X_sim, y_sim
 
-def process_data(X, y):
+def add_noise(X: pd.DataFrame, y: pd.Series, noise_level=0.01):
+    """Add Gaussian noise to features and target"""
+    X_noisy = X.copy()
+    y_noisy = y.copy()
+    
+    # Add noise to each feature column
+    for col in X.columns:
+        noise = np.random.normal(0, noise_level * X[col].std(), size=X.shape[0])
+        X_noisy[col] += noise
+    
+    # Add noise to target
+    noise = np.random.normal(0, noise_level * y.std(), size=y.shape[0])
+    y_noisy += noise
+    
+    return X_noisy, y_noisy
+
+def process_data(X: pd.DataFrame, y: pd.Series):
     """Process and save the data"""
     # Simulate inflation
     X1, y1 = simulate_inflation(X, y)
+    X2, y2 = add_noise(X1, y1, noise_level=0.01)
 
     # Split into train and test sets (80/20 split)
     split_index = int(0.8 * len(X1))
-    X_train, X_test = X1.iloc[:split_index], X1.iloc[split_index:]
-    y_train, y_test = y1.iloc[:split_index], y1.iloc[split_index:]
+    X_train, X_test = X2.iloc[:split_index], X2.iloc[split_index:]
+    y_train, y_test = y2.iloc[:split_index], y2.iloc[split_index:]
 
     # Save processed data
     os.makedirs('processed', exist_ok=True)
