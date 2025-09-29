@@ -1,0 +1,14 @@
+name: gradient-boosted-regression
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - scikit-learn
+  - pip
+  - pip:
+    - mlflow
+    - kaggle
+    - pytest
