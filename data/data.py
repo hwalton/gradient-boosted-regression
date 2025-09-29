@@ -106,6 +106,5 @@ def main():
     X, y = get_data()
     _, _, _, _ = process_data(X, y)
 
-
 if __name__ == "__main__":
     main()
