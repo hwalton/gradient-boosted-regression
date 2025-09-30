@@ -61,6 +61,18 @@ def train_and_save(
 
     return path, {"train": train_metrics, "val": val_metrics}
 
+# final evaluation moved to a standalone function (not called by default)
+def evaluate_saved_model_on_test(model_path: str, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, float]:
+    """
+    Load a saved model file and evaluate it on the held-out test set.
+    This function is intentionally not called from main; run manually when ready
+    for the unbiased final evaluation.
+    """
+    saved = joblib.load(model_path)
+    model = saved["model"] if isinstance(saved, dict) and "model" in saved else saved
+    metrics = evaluate(model, X_test, y_test)
+    return metrics
+
 def main():
     """
     Minimal training entrypoint: loads processed data and prints basic info.
@@ -86,11 +98,8 @@ def main():
     logger.info("Training metrics: %s", metrics["train"])
     logger.info("Validation metrics: %s", metrics["val"])
 
-    # final evaluation on held-out test set
-    saved = joblib.load(model_path)
-    model = saved["model"] if isinstance(saved, dict) and "model" in saved else saved
-    test_metrics = evaluate(model, X_test, y_test)
-    logger.info("Test metrics (final holdout): %s", test_metrics)
+    # metrics = evaluate_saved_model_on_test(model_path, X_test, y_test)
+    # logger.info("Test metrics (final holdout): %s", metrics)
 
 if __name__ == "__main__":
     # Configure logging to show INFO messages on the console
