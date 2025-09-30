@@ -1,4 +1,10 @@
-import os
+import logging
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# WEEKLY_DATA = os.path.join(PROJECT_ROOT, 'a_data', 'BitcoinHistory.csv')
+from training import train
+
+def main():
+    train.main()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    main()
