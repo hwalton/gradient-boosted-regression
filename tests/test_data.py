@@ -20,10 +20,12 @@ class TestInflationSimulation:
     
     def test_simulate_inflation_no_time_elapsed(self, sample_data):
         """Test inflation simulation at reference date (no time elapsed)"""
-        X, y = sample_data
         reference_date = datetime(2025, 9, 29)
+
+        X, y = sample_data
+        X_sim, y_sim = X.copy(), y.copy()
         
-        X_sim, y_sim = simulate_inflation(X, y, annual_rate=0.03, current_date=reference_date)
+        simulate_inflation(X_sim, y_sim, annual_rate=0.03, current_date=reference_date)
         
         # Should be identical when no time has elapsed
         pd.testing.assert_frame_equal(X, X_sim)
@@ -31,12 +33,14 @@ class TestInflationSimulation:
     
     def test_simulate_inflation_6_months(self, sample_data):
         """Test inflation simulation for 6 months (0.5 years)"""
-        X, y = sample_data
-        annual_rate = 0.03
         six_months_later = datetime(2026, 3, 29)  # 6 months later
-        
-        X_sim, y_sim = simulate_inflation(X, y, annual_rate=annual_rate, current_date=six_months_later)
-        
+        annual_rate = 0.03
+
+        X, y = sample_data
+        X_sim, y_sim = X.copy(), y.copy()
+
+        simulate_inflation(X_sim, y_sim, annual_rate=annual_rate, current_date=six_months_later)
+
         years_elapsed = 181 / 365
         
         expected_multiplier = np.exp(np.log(1+annual_rate) * years_elapsed)
@@ -51,11 +55,13 @@ class TestInflationSimulation:
     
     def test_simulate_inflation_1_year(self, sample_data):
         """Test inflation simulation for exactly 1 year"""
-        X, y = sample_data
         one_year_later = datetime(2026, 9, 29)  # Exactly 1 year later
         annual_rate = 0.1
-        
-        X_sim, y_sim = simulate_inflation(X, y, annual_rate=annual_rate, current_date=one_year_later)
+
+        X, y = sample_data
+        X_sim, y_sim = X.copy(), y.copy()
+
+        simulate_inflation(X_sim, y_sim, annual_rate=annual_rate, current_date=one_year_later)
 
         expected_multiplier = 1.1
         
@@ -65,10 +71,12 @@ class TestInflationSimulation:
     
     def test_simulate_inflation_past_date(self, sample_data):
         """Test inflation simulation with past date (should not change values)"""
-        X, y = sample_data
         past_date = datetime(2024, 9, 29)  # 1 year before reference
         
-        X_sim, y_sim = simulate_inflation(X, y, current_date=past_date)
+        X, y = sample_data
+        X_sim, y_sim = X.copy(), y.copy()
+
+        simulate_inflation(X_sim, y_sim, current_date=past_date)
         
         expected_multiplier = 0.9708737864
         
@@ -77,12 +85,15 @@ class TestInflationSimulation:
     
     def test_simulate_inflation_different_rates(self, sample_data):
         """Different annual rates should produce different multipliers (higher rate -> higher values)"""
-        X, y = sample_data
         one_year_later = datetime(2026, 9, 29)
 
+        X, y = sample_data
+        X_low, y_low = X.copy(), y.copy()
+        X_high, y_high = X.copy(), y.copy()
+
         # Run simulation with two different rates
-        X_low, y_low = simulate_inflation(X, y, annual_rate=0.01, current_date=one_year_later)
-        X_high, y_high = simulate_inflation(X, y, annual_rate=0.05, current_date=one_year_later)
+        simulate_inflation(X_low, y_low, annual_rate=0.01, current_date=one_year_later)
+        simulate_inflation(X_high, y_high, annual_rate=0.05, current_date=one_year_later)
 
         # Higher rate must yield strictly larger values
         assert (y_high > y_low).all()
