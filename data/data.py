@@ -152,6 +152,27 @@ def preprocess_data(X: pd.DataFrame,
         manifest["splits"]["y_val.csv"] = {"rows": int(y_val.shape[0]), "cols": 1, "sha256": _file_sha256(files["y_val.csv"])}
         manifest["splits"]["y_test.csv"] = {"rows": int(y_test.shape[0]), "cols": 1, "sha256": _file_sha256(files["y_test.csv"])}
 
+        # persist manifest to disk
+        manifest_path = os.path.join(Cfg.processed_dir, "manifest.json")
+        with open(manifest_path, "w") as fh:
+            json.dump(manifest, fh, indent=2)
+        print(f"Manifest written to {manifest_path}")
+
+        # log manifest and a few useful params to MLflow if a run is active
+        if mlflow.active_run() is not None:
+            try:
+                mlflow.log_artifact(manifest_path, artifact_path="data_manifest")
+                mlflow.log_param("test_size", float(test_size))
+                mlflow.log_param("val_size", float(val_size))
+                mlflow.log_param("random_seed", int(random_state))
+                # log split summaries/checksums
+                for name, info in manifest["splits"].items():
+                    mlflow.log_param(f"{name}_rows", int(info["rows"]))
+                    mlflow.log_param(f"{name}_cols", int(info["cols"]))
+                    mlflow.log_param(f"{name}_sha256", info["sha256"])
+            except Exception as e:
+                # don't let MLflow logging break the data pipeline
+                print(f"Warning: failed to log manifest to MLflow: {e}")
 
 def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, random_state: int = 42):
     """
