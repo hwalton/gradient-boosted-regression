@@ -155,18 +155,18 @@ def main():
             mlflow.log_artifact(manifest_path, artifact_path="data_manifest")
 
         # Simple hyperparameter tuning (grid search on validation set)
-        param_grid = {
-            "n_estimators": [100, 200],
-            "learning_rate": [0.01, 0.05, 0.1],
-            "max_depth": [3, 5],
-            "subsample": [0.8, 1.0],
-        }
         # param_grid = {
         #     "n_estimators": [100, 200],
-        #     "learning_rate": [0.1],
-        #     "max_depth": [5],
-        #     "subsample": [1.0],
+        #     "learning_rate": [0.01, 0.05, 0.1],
+        #     "max_depth": [3, 5],
+        #     "subsample": [0.8, 1.0],
         # }
+        param_grid = {
+            "n_estimators": [200],
+            "learning_rate": [0.1],
+            "max_depth": [5],
+            "subsample": [1.0],
+        }
         try:
             tune_res = tune_hyperparams(X_train, y_train, X_val, y_val, param_grid, random_state=42)
             best_params = tune_res["best_params"]

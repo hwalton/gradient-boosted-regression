@@ -13,3 +13,6 @@ dependencies:
     - mlflow
     - kaggle
     - pytest
+    - awscli
+    - boto3
+    - sagemaker
