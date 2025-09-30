@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
+import mlflow
+import hashlib
 
 
 from utils.utils import load_processed_data
@@ -91,8 +93,36 @@ def main():
     logger.info("X_train shape: %s, X_val shape: %s, X_test shape: %s", X_train.shape, X_val.shape, X_test.shape)
     logger.info("y_train length: %d, y_val length: %d, y_test length: %d", len(y_train), len(y_val), len(y_test))
 
-    # train on X_train / y_train and validate on X_val / y_val
-    model_path, metrics = train_and_save(X_train, X_val, y_train, y_val)
+    # Start an MLflow run and log dataset manifest/checksums before training
+    mlflow.set_experiment("gradient_boosted_regression")
+    # start top-level run if none active, otherwise create a nested training run
+    if mlflow.active_run() is None:
+        run_ctx = mlflow.start_run(run_name="training")
+        nested = False
+    else:
+        run_ctx = mlflow.start_run(run_name="training", nested=True)
+        nested = True
+    with run_ctx:
+        # log simple dataset stats
+        mlflow.log_param("X_train_rows", int(X_train.shape[0]))
+        mlflow.log_param("X_train_cols", int(X_train.shape[1]))
+        mlflow.log_param("X_val_rows", int(X_val.shape[0]))
+        mlflow.log_param("X_test_rows", int(X_test.shape[0]))
+
+        # if manifest exists, attach it as an artifact for lineage
+        manifest_path = os.path.join(processed_dir, "manifest.json")
+        if os.path.exists(manifest_path):
+            mlflow.log_artifact(manifest_path, artifact_path="data_manifest")
+
+        # train and save model; train_and_save writes joblib artifact
+        model_path, metrics = train_and_save(X_train, X_val, y_train, y_val)
+
+        # log metrics and saved model artifact
+        mlflow.log_metrics({f"train_{k}": v for k, v in metrics["train"].items()})
+        mlflow.log_metrics({f"val_{k}": v for k, v in metrics["val"].items()})
+        if os.path.exists(model_path):
+            mlflow.log_artifact(model_path, artifact_path="models")
+
     logger.info("Model saved to %s", model_path)
     logger.info("Training metrics: %s", metrics["train"])
     logger.info("Validation metrics: %s", metrics["val"])
