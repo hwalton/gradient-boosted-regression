@@ -5,6 +5,9 @@ from sklearn.datasets import fetch_california_housing
 from datetime import datetime, timedelta
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import json
+import hashlib
+import mlflow
 
 class Cfg:
     """Configuration for data processing"""
@@ -115,10 +118,48 @@ def preprocess_data(X: pd.DataFrame,
         y_test.to_csv(f"{Cfg.processed_dir}/y_test.csv", index=False)
         print("Processed data saved in 'processed/' directory.")
 
+        # write a small manifest for lineage and reproducibility
+        def _file_sha256(path: str) -> str:
+            h = hashlib.sha256()
+            with open(path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(8192), b""):
+                    h.update(chunk)
+            return h.hexdigest()
+
+        manifest = {
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "processed_dir": Cfg.processed_dir,
+            "splits": {},
+            "target": "MedHouseVal",
+            "processing": {"simulate_inflation": {"annual_rate": 0.03}, "add_noise": {"noise_level": 0.01}},
+            "random_seed": int(random_state),
+        }
+
+        files = {
+            "X_train.csv": os.path.join(Cfg.processed_dir, "X_train.csv"),
+            "X_val.csv": os.path.join(Cfg.processed_dir, "X_val.csv"),
+            "X_test.csv": os.path.join(Cfg.processed_dir, "X_test.csv"),
+            "y_train.csv": os.path.join(Cfg.processed_dir, "y_train.csv"),
+            "y_val.csv": os.path.join(Cfg.processed_dir, "y_val.csv"),
+            "y_test.csv": os.path.join(Cfg.processed_dir, "y_test.csv"),
+        }
+
+        # use existing DataFrames for shapes where possible (avoid re-reading)
+        manifest["splits"]["X_train.csv"] = {"rows": int(X_train.shape[0]), "cols": int(X_train.shape[1]), "sha256": _file_sha256(files["X_train.csv"])}
+        manifest["splits"]["X_val.csv"] = {"rows": int(X_val.shape[0]), "cols": int(X_val.shape[1]), "sha256": _file_sha256(files["X_val.csv"])}
+        manifest["splits"]["X_test.csv"] = {"rows": int(X_test.shape[0]), "cols": int(X_test.shape[1]), "sha256": _file_sha256(files["X_test.csv"])}
+        manifest["splits"]["y_train.csv"] = {"rows": int(y_train.shape[0]), "cols": 1, "sha256": _file_sha256(files["y_train.csv"])}
+        manifest["splits"]["y_val.csv"] = {"rows": int(y_val.shape[0]), "cols": 1, "sha256": _file_sha256(files["y_val.csv"])}
+        manifest["splits"]["y_test.csv"] = {"rows": int(y_test.shape[0]), "cols": 1, "sha256": _file_sha256(files["y_test.csv"])}
+
+
 def main():
     X, y = get_data()
     simulate_drift(X, y)
     preprocess_data(X, y)
 
 if __name__ == "__main__":
-    main()
+    mlflow.set_experiment("gradient_boosted_regression")
+    # top-level run for full pipeline
+    with mlflow.start_run(run_name="data_pipeline"):
+        main()
