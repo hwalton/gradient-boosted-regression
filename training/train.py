@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
-from sklearn.model_selection import train_test_split
 
 
 from utils.utils import load_processed_data
@@ -62,7 +61,7 @@ def train_and_save(
     return path, {"train": train_metrics, "val": val_metrics}
 
 # final evaluation moved to a standalone function (not called by default)
-def evaluate_saved_model_on_test(model_path: str, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, float]:
+def evaluate_final_model_on_test(model_path: str, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, float]:
     """
     Load a saved model file and evaluate it on the held-out test set.
     This function is intentionally not called from main; run manually when ready
@@ -98,7 +97,7 @@ def main():
     logger.info("Training metrics: %s", metrics["train"])
     logger.info("Validation metrics: %s", metrics["val"])
 
-    # metrics = evaluate_saved_model_on_test(model_path, X_test, y_test)
+    # metrics = evaluate_final_model_on_test(model_path, X_test, y_test)
     # logger.info("Test metrics (final holdout): %s", metrics)
 
 if __name__ == "__main__":
