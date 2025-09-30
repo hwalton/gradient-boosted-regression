@@ -1,8 +1,15 @@
 import os
+from symtable import Class
 import numpy as np
 from sklearn.datasets import fetch_california_housing
 from datetime import datetime, timedelta
+from sklearn.model_selection import train_test_split
 import pandas as pd
+
+class Cfg:
+    """Configuration for data processing"""
+    raw_dir: str = "data/raw"
+    processed_dir: str = "data/processed"
 
 def get_data(save_csv=True):
     """Load California housing dataset as pandas DataFrames"""
@@ -14,9 +21,9 @@ def get_data(save_csv=True):
     y = data.target  # Already a Series
     
     if save_csv:
-        os.makedirs('raw', exist_ok=True)
-        X.to_csv('raw/features.csv', index=False)
-        y.to_csv('raw/target.csv', index=False)
+        os.makedirs(Cfg.raw_dir, exist_ok=True)
+        X.to_csv(os.path.join(Cfg.raw_dir, 'features.csv'), index=False)
+        y.to_csv(os.path.join(Cfg.raw_dir, 'target.csv'), index=False)
 
     print(f"Features shape: {X.shape}")
     print(f"Target shape: {y.shape}")
@@ -72,30 +79,55 @@ def add_noise(X: pd.DataFrame, y: pd.Series, noise_level=0.01):
     noise = np.random.normal(0, noise_level * y.std(), size=y.shape[0])
     y += noise
 
-def process_data(X: pd.DataFrame, y: pd.Series):
-    """Process and save the data"""
-    # Simulate inflation
+def process_data(
+    X: pd.DataFrame,
+    y: pd.Series,
+    test_size: float = 0.2,
+    val_size: float = 0.2,
+    random_state: int = 42,
+    save_csv: bool = True,
+):
+    """
+    Process dataset: simulate inflation, add noise, then split into train/val/test.
+
+    Parameters:
+    - test_size: fraction of the full dataset to reserve for test (default 0.2)
+    - val_size: fraction of the training portion to reserve for validation (default 0.2)
+                  (i.e. validation_size_relative = val_size of the remaining training split)
+    - random_state: random seed for reproducible splits
+    - save_csv: whether to write split CSVs under 'processed/'
+
+    Returns:
+    X_train, X_val, X_test, y_train, y_val, y_test
+    """
+    # Simulate inflation and add noise (mutate in-place)
     simulate_inflation(X, y)
     add_noise(X, y, noise_level=0.01)
 
-    # Split into train and test sets (80/20 split)
-    split_index = int(0.8 * len(X))
-    X_train, X_test = X.iloc[:split_index], X.iloc[split_index:]
-    y_train, y_test = y.iloc[:split_index], y.iloc[split_index:]
+    # First split off the test set from the full data
+    X_temp, X_test, y_temp, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
+    # Then split the remaining data into train and validation
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_temp, y_temp, test_size=val_size, random_state=random_state
+    )
 
-    # Save processed data
-    os.makedirs('processed', exist_ok=True)
-    X_train.to_csv('processed/X_train.csv', index=False)
-    X_test.to_csv('processed/X_test.csv', index=False)
-    y_train.to_csv('processed/y_train.csv', index=False)
-    y_test.to_csv('processed/y_test.csv', index=False)
-    print("Processed data saved in 'processed/' directory.")
+    if save_csv:
+        os.makedirs(Cfg.processed_dir, exist_ok=True)
+        X_train.to_csv(f"{Cfg.processed_dir}/X_train.csv", index=False)
+        X_val.to_csv(f"{Cfg.processed_dir}/X_val.csv", index=False)
+        X_test.to_csv(f"{Cfg.processed_dir}/X_test.csv", index=False)
+        y_train.to_csv(f"{Cfg.processed_dir}/y_train.csv", index=False)
+        y_val.to_csv(f"{Cfg.processed_dir}/y_val.csv", index=False)
+        y_test.to_csv(f"{Cfg.processed_dir}/y_test.csv", index=False)
+        print("Processed data saved in 'processed/' directory.")
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_val, X_test, y_train, y_val, y_test
 
 def main():
     X, y = get_data()
-    _, _, _, _ = process_data(X, y)
+    process_data(X, y)
 
 if __name__ == "__main__":
     main()
