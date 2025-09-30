@@ -153,13 +153,24 @@ def preprocess_data(X: pd.DataFrame,
         manifest["splits"]["y_test.csv"] = {"rows": int(y_test.shape[0]), "cols": 1, "sha256": _file_sha256(files["y_test.csv"])}
 
 
-def main():
-    X, y = get_data()
-    simulate_drift(X, y)
-    preprocess_data(X, y)
+def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, random_state: int = 42):
+    """
+    Run data pipeline and log as MLflow run (nested if called from an active run).
+    """
+    mlflow.set_experiment("gradient_boosted_regression")
+    # choose nested behavior depending on whether a run is already active
+    if mlflow.active_run() is None:
+        with mlflow.start_run(run_name="data_preprocessing"):
+            X, y = get_data(save_csv=save_csv)
+            simulate_drift(X, y)
+            return preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
+    else:
+        with mlflow.start_run(run_name="data_preprocessing", nested=True):
+            X, y = get_data(save_csv=save_csv)
+            simulate_drift(X, y)
+            return preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
 
 if __name__ == "__main__":
-    mlflow.set_experiment("gradient_boosted_regression")
     # top-level run for full pipeline
     with mlflow.start_run(run_name="data_pipeline"):
         main()

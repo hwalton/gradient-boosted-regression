@@ -95,7 +95,14 @@ def main():
 
     # Start an MLflow run and log dataset manifest/checksums before training
     mlflow.set_experiment("gradient_boosted_regression")
-    with mlflow.start_run():
+    # start top-level run if none active, otherwise create a nested training run
+    if mlflow.active_run() is None:
+        run_ctx = mlflow.start_run(run_name="training")
+        nested = False
+    else:
+        run_ctx = mlflow.start_run(run_name="training", nested=True)
+        nested = True
+    with run_ctx:
         # log simple dataset stats
         mlflow.log_param("X_train_rows", int(X_train.shape[0]))
         mlflow.log_param("X_train_cols", int(X_train.shape[1]))
