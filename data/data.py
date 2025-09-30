@@ -1,13 +1,90 @@
 import os
-from symtable import Class
 import numpy as np
 from sklearn.datasets import fetch_california_housing
 from datetime import datetime, timedelta
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import mlflow
+import time
+import matplotlib.pyplot as plt
+# force non-interactive backend to avoid GUI overhead
+plt.switch_backend("Agg")
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import mlflow
 import json
 import hashlib
+import joblib
+from typing import List, Optional
+import numpy as np
+import pandas as pd
 import mlflow
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import FunctionTransformer
+from sklearn.impute import SimpleImputer
+
+def _file_sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def build_log1p_preprocessor(cols: List[str]) -> ColumnTransformer:
+    """
+    Return a ColumnTransformer that applies log1p to `cols`,
+    and passes through the remaining numeric columns unchanged.
+    """
+    log_tf = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
+        ("log1p", FunctionTransformer(np.log1p, validate=False)),
+    ])
+    preproc = ColumnTransformer(
+        [("log1p", log_tf, cols)],
+        remainder="passthrough",
+        sparse_threshold=0
+    )
+    return preproc
+
+def save_log1p_preprocessor(
+    X_ref: pd.DataFrame,
+    cols: Optional[List[str]] = None,
+    path: str = "models/preprocessor.joblib"
+) -> str:
+    """
+    Build & persist a simple log1p preprocessor using X_ref to infer columns if needed.
+    Logs the saved file and its sha256 to MLflow (if an active run exists).
+    Returns the saved path.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if cols is None:
+        # choose a reasonable default for skewed numeric cols if not provided
+        numeric = X_ref.select_dtypes(include=[np.number]).columns.tolist()
+        # prefer MedInc and Population if present
+        default = [c for c in ["MedInc", "Population"] if c in numeric]
+        cols = default or numeric[:2]
+
+    preproc = build_log1p_preprocessor(cols)
+    # Fit is a no-op for FunctionTransformer after imputer, but call for API consistency
+    preproc.fit(X_ref)
+
+    joblib.dump({"pipeline": preproc, "cols": cols}, path)
+
+    # log artifact and checksum to MLflow when available
+    try:
+        if mlflow.active_run() is not None:
+            mlflow.log_param("preprocessor_type", "log1p")
+            mlflow.log_param("preprocessor_cols", ",".join(cols))
+            sha = _file_sha256(path)
+            mlflow.log_param("preprocessor_sha256", sha)
+            mlflow.log_artifact(path, artifact_path="preprocessor")
+    except Exception as e:
+        # do not fail training if MLflow logging fails
+        print(f"Warning: failed to log preprocessor to MLflow: {e}")
+
+    return path
 
 class Cfg:
     """Configuration for data processing"""
@@ -98,6 +175,30 @@ def preprocess_data(X: pd.DataFrame,
     random_state: int = 42,
     save_csv: bool = True
     ):
+
+    # Safe log1p: clip negatives (or shift) and record issues so transform is robust
+    def _safe_log1p(series: pd.Series, name: str) -> pd.Series:
+        s = series.copy()
+        neg_count = int((s < 0).sum())
+        if neg_count:
+            print(f"Warning: {neg_count} negative values in {name}; clipping to 0 before log1p")
+        s = s.clip(lower=0)
+        out = np.log1p(s)
+        nan_count = int(out.isna().sum())
+        if nan_count:
+            print(f"Warning: {nan_count} NaNs in {name} after log1p")
+        if mlflow.active_run() is not None:
+            try:
+                mlflow.log_param(f"{name}_negatives", neg_count)
+                mlflow.log_param(f"{name}_nans_after_log", nan_count)
+            except Exception:
+                pass
+        return out
+
+    if "MedInc" in X.columns:
+        X.loc[:, "MedInc"] = _safe_log1p(X["MedInc"], "MedInc")
+    if "Population" in X.columns:
+        X.loc[:, "Population"] = _safe_log1p(X["Population"], "Population")
     
     # First split off the test set from the full data
     X_temp, X_test, y_temp, y_test = train_test_split(
@@ -117,14 +218,6 @@ def preprocess_data(X: pd.DataFrame,
         y_val.to_csv(f"{Cfg.processed_dir}/y_val.csv", index=False)
         y_test.to_csv(f"{Cfg.processed_dir}/y_test.csv", index=False)
         print("Processed data saved in 'processed/' directory.")
-
-        # write a small manifest for lineage and reproducibility
-        def _file_sha256(path: str) -> str:
-            h = hashlib.sha256()
-            with open(path, "rb") as fh:
-                for chunk in iter(lambda: fh.read(8192), b""):
-                    h.update(chunk)
-            return h.hexdigest()
 
         manifest = {
             "created_at": datetime.utcnow().isoformat() + "Z",
@@ -174,6 +267,72 @@ def preprocess_data(X: pd.DataFrame,
                 # don't let MLflow logging break the data pipeline
                 print(f"Warning: failed to log manifest to MLflow: {e}")
 
+        # save and log the deterministic log1p preprocessor fitted on X_train
+        try:
+            preproc_path = save_log1p_preprocessor(X_train, path=os.path.join("models", "preprocessor.joblib"))
+            manifest["preprocessor"] = {"path": preproc_path, "sha256": _file_sha256(preproc_path)}
+        except Exception as e:
+            print(f"Warning: failed to save/log preprocessor: {e}")
+
+def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=False, dpi=80, mlflow_log=True):
+    os.makedirs(outdir, exist_ok=True)
+
+    df = X.copy()
+    df["target"] = y
+    if sample and len(df) > sample:
+        df = df.sample(sample, random_state=42)
+
+    # distribution plots for numeric features
+    numeric = df.select_dtypes(include=[np.number]).columns.tolist()
+    skewness = df[numeric].skew().sort_values(ascending=False)
+    skew_path = os.path.join(outdir, "skewness.csv")
+    skewness.to_csv(skew_path)
+
+    # histograms (one figure per column)
+    start = time.time()
+    for col in numeric:
+        plt.figure(figsize=(6, 4), dpi=dpi)
+        # disable KDE (expensive) and limit bins
+        sns.histplot(df[col].dropna(), kde=kde, bins=40)
+        plt.title(f"Distribution: {col}")
+        p = os.path.join(outdir, f"hist_{col}.png")
+        plt.tight_layout()
+        plt.savefig(p)
+        plt.close()
+    print(f"Saved {len(numeric)} histograms in {time.time()-start:.2f}s")
+
+    # correlation heatmap (subset if many features)
+    corr = df[numeric].corr()
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(corr, annot=False, cmap="vlag", center=0)
+    corr_path = os.path.join(outdir, "corr_heatmap.png")
+    plt.tight_layout()
+    plt.savefig(corr_path)
+    plt.close()
+
+    # simple summary
+    summary = df[numeric].describe().T
+    summary_path = os.path.join(outdir, "summary.csv")
+    summary.to_csv(summary_path)
+
+    if mlflow_log and mlflow.active_run() is not None:
+        try:
+            mlflow.log_artifact(skew_path, artifact_path="eda")
+            mlflow.log_artifact(corr_path, artifact_path="eda")
+            mlflow.log_artifact(summary_path, artifact_path="eda")
+            for col in numeric:
+                p = os.path.join(outdir, f"hist_{col}.png")
+                if os.path.exists(p):
+                    mlflow.log_artifact(p, artifact_path="eda")
+            # log top skewed features as params for quick reference
+            top_skew = skewness.head(5).to_dict()
+            for k, v in top_skew.items():
+                mlflow.log_param(f"skew_top_{k}", float(v))
+        except Exception as e:
+            print(f"Warning: MLflow logging failed: {e}")
+
+    return {"skewness_csv": skew_path, "corr_png": corr_path, "summary_csv": summary_path}
+
 def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, random_state: int = 42):
     """
     Run data pipeline and log as MLflow run (nested if called from an active run).
@@ -184,14 +343,16 @@ def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, r
         with mlflow.start_run(run_name="data_preprocessing"):
             X, y = get_data(save_csv=save_csv)
             simulate_drift(X, y)
-            return preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
+            preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
+            eda(X, y)
+
     else:
         with mlflow.start_run(run_name="data_preprocessing", nested=True):
             X, y = get_data(save_csv=save_csv)
             simulate_drift(X, y)
-            return preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
+            preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
+            eda(X, y)
 
 if __name__ == "__main__":
-    # top-level run for full pipeline
-    with mlflow.start_run(run_name="data_pipeline"):
-        main()
+    # When running this module directly, let main() decide run nesting.
+    main()

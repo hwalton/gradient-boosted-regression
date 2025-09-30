@@ -9,3 +9,8 @@ models/
 *.joblib
 
 mlruns/
+
+data/reports/
+data/processed/
+data/raw/
+data/drifted/
