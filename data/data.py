@@ -60,6 +60,9 @@ def simulate_inflation(X: pd.DataFrame, y: pd.Series, annual_rate=0.03, current_
     print(f"Inflation multiplier: {continuous_multiplier:.6f}")
 
 def add_noise(X: pd.DataFrame, y: pd.Series, noise_level=0.01):   
+    #Comment out random seed for true randomness
+    np.random.seed(42)  # For reproducibility during testing
+
     # Add noise to each feature column
     for col in X.columns:
         noise = np.random.normal(0, noise_level * X[col].std(), size=X.shape[0])
