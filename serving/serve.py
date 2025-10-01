@@ -116,5 +116,6 @@ def predict():
         return jsonify({"error": "prediction failed", "detail": str(exc)}), 500
 
 if __name__ == "__main__":
+    load_dotenv(Path(".env"), override=True)
     # Use 0.0.0.0 for local network access; change port as needed.
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False)

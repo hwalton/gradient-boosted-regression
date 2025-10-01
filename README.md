@@ -15,3 +15,17 @@
    mlflow ui --port 5000 --host 127.0.0.1
    ```
    Access the UI at `http://localhost:5000`.
+
+4. Set up AWS
+```bash
+aws s3api create-bucket --bucket "$BUCKET" --region "$REGION"
+
+aws iam attach-role-policy --role-name "$AWS_ROLE" \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+
+aws s3 cp data/processed s3://$BUCKET/processed/ --recursive
+
+aws iam put-role-policy --role-name "SageMakerHW" \
+  --policy-name "SageMakerS3Access" \
+  --policy-document file://sagemaker-s3-policy.json
+```
