@@ -10,7 +10,6 @@ import mlflow
 import hashlib
 import itertools
 
-
 from utils.utils import load_processed_data
 
 logger = logging.getLogger(__name__)
@@ -44,25 +43,6 @@ def evaluate(model, X, y) -> Dict[str, float]:
     r2 = r2_score(y, preds)
     return {"rmse": float(rmse), "mae": float(mae), "r2": float(r2)}
 
-def train_and_save(
-    X_train: pd.DataFrame,
-    X_val: pd.DataFrame,
-    y_train: pd.Series,
-    y_val: pd.Series,
-    model_name: str = "gbr.joblib",
-    params: Dict[str, Any] = None,
-    random_state: int = 42
-) -> Tuple[str, Dict[str, Any]]:
-    model = train_gbr(X_train, y_train, random_state=random_state, params=params)
-    train_metrics = evaluate(model, X_train, y_train)
-    val_metrics = evaluate(model, X_val, y_val)
-
-    os.makedirs(Cfg.model_dir, exist_ok=True)
-    path = os.path.join(Cfg.model_dir, model_name)
-    joblib.dump({"model": model, "params": params, "train_metrics": train_metrics, "val_metrics": val_metrics}, path)
-
-    return path, {"train": train_metrics, "val": val_metrics}
-
 # final evaluation moved to a standalone function (not called by default)
 def evaluate_final_model_on_test(model_path: str, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, float]:
     saved = joblib.load(model_path)
@@ -83,6 +63,39 @@ def evaluate_final_model_on_test(model_path: str, X_test: pd.DataFrame, y_test: 
 
     return metrics
 
+def save_model(
+    model,
+    model_dir: str,
+    model_name: str = "gbr.joblib",
+    params: Dict[str, Any] | None = None,
+    train_metrics: Dict[str, float] | None = None,
+    val_metrics: Dict[str, float] | None = None,
+) -> str:
+    """
+    Persist model to model_dir/model_name and (optionally) log artifact to MLflow.
+    Returns the local model path.
+    """
+    os.makedirs(model_dir, exist_ok=True)
+    model_path = os.path.join(model_dir, model_name)
+    try:
+        joblib.dump(
+            {"model": model, "params": params, "train_metrics": train_metrics, "val_metrics": val_metrics},
+            model_path,
+        )
+        logger.info("Saved model to %s", model_path)
+    except Exception as e:
+        logger.error("Failed to save model to %s: %s", model_path, e)
+        raise
+
+    # attempt to log artifact to MLflow but do not raise on failure
+    try:
+        if mlflow:
+            mlflow.log_artifact(model_path, artifact_path="models")
+    except Exception as e:
+        logger.warning("Logging model artifact to MLflow failed: %s", e)
+
+    return model_path
+
 def tune_hyperparams(
     X_train: pd.DataFrame,
     y_train: pd.Series,
@@ -97,6 +110,7 @@ def tune_hyperparams(
     and a list of trial results.
     """
     results = []
+    models = []
     keys = list(param_grid.keys())
     for vals in itertools.product(*(param_grid[k] for k in keys)):
         params = {k: v for k, v in zip(keys, vals)}
@@ -109,10 +123,18 @@ def tune_hyperparams(
         metrics = evaluate(model, X_val, y_val)
         trial = {"params": params, "val_rmse": metrics["rmse"], "val_mae": metrics["mae"], "val_r2": metrics["r2"]}
         results.append(trial)
+        models.append(model)
 
     # choose best by val_rmse
-    best = min(results, key=lambda r: r["val_rmse"])
-    return {"best_params": best["params"], "best_score": best["val_rmse"], "trials": results}
+    best_idx = int(np.argmin([r["val_rmse"] for r in results]))
+    best = results[best_idx]
+    best_model = models[best_idx]
+    return {
+        "best_params": best["params"],
+        "best_score": best["val_rmse"],
+        "trials": results,
+        "best_model": best_model,
+    }
 
 def main():
     """
@@ -170,25 +192,39 @@ def main():
         try:
             tune_res = tune_hyperparams(X_train, y_train, X_val, y_val, param_grid, random_state=42)
             best_params = tune_res["best_params"]
+            best_model = tune_res.get("best_model")
             # log best params and best score
             for k, v in best_params.items():
-                mlflow.log_param(f"tune_best_{k}", v)
-            mlflow.log_metric("tune_best_val_rmse", float(tune_res["best_score"]))
+                if mlflow:
+                    mlflow.log_param(f"tune_best_{k}", v)
+            if mlflow:
+                mlflow.log_metric("tune_best_val_rmse", float(tune_res["best_score"]))
             # also log each trial (minimal)
             for i, t in enumerate(tune_res["trials"]):
-                # flatten params for this trial
                 for pk, pv in t["params"].items():
-                    mlflow.log_param(f"trial_{i}_{pk}", pv)
-                mlflow.log_metric(f"trial_{i}_val_rmse", float(t["val_rmse"]))
+                    if mlflow:
+                        mlflow.log_param(f"trial_{i}_{pk}", pv)
+                if mlflow:
+                    mlflow.log_metric(f"trial_{i}_val_rmse", float(t["val_rmse"]))
         except Exception as e:
             logger.warning("Hyperparameter tuning failed, continuing with defaults: %s", e)
             best_params = None
+            best_model = None
 
-        # if tuning produced best_params, use them, else fall back to defaults
-        model_params = best_params if best_params is not None else None
-
-        # train and save model; train_and_save writes joblib artifact
-        model_path, metrics = train_and_save(X_train, X_val, y_train, y_val, params=model_params)
+        logger.info("Reusing best model from tuning (no retrain)")
+        model = best_model
+        train_metrics = evaluate(model, X_train, y_train)
+        val_metrics = evaluate(model, X_val, y_val)
+        model_name = "gbr.joblib"
+        model_path = save_model(
+            model,
+            Cfg.model_dir,
+            model_name=model_name,
+            params=best_params,
+            train_metrics=train_metrics,
+            val_metrics=val_metrics,
+        )
+        metrics = {"train": train_metrics, "val": val_metrics}
 
         # log metrics and saved model artifact
         mlflow.log_metrics({f"train_{k}": v for k, v in metrics["train"].items()})
