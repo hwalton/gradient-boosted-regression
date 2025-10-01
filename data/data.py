@@ -24,6 +24,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.impute import SimpleImputer
+import boto3
+from dotenv import load_dotenv
 
 def _file_sha256(path: str) -> str:
     h = hashlib.sha256()
@@ -251,6 +253,29 @@ def preprocess_data(X: pd.DataFrame,
             json.dump(manifest, fh, indent=2)
         print(f"Manifest written to {manifest_path}")
 
+        # Optional: upload processed files + manifest to S3 if bucket configured.
+        # Looks for MODEL_BUCKET, BUCKET or S3_BUCKET env var; uses PROCESSED_PREFIX or 'processed/' as prefix.
+        s3_bucket = os.getenv("MODEL_BUCKET") or os.getenv("BUCKET") or os.getenv("S3_BUCKET")
+        s3_prefix = os.getenv("PROCESSED_PREFIX", "processed/").rstrip("/")
+        if s3_bucket:
+            s3 = boto3.client("s3")
+            try:
+                for name, local_path in files.items():
+                    s3_key = f"{s3_prefix}/{name}"
+                    print(f"Uploading {local_path} -> s3://{s3_bucket}/{s3_key}")
+                    s3.upload_file(local_path, s3_bucket, s3_key)
+                    manifest["splits"][name]["s3_uri"] = f"s3://{s3_bucket}/{s3_key}"
+                # upload manifest too
+                manifest_s3_key = f"{s3_prefix}/manifest.json"
+                print(f"Uploading {manifest_path} -> s3://{s3_bucket}/{manifest_s3_key}")
+                s3.upload_file(manifest_path, s3_bucket, manifest_s3_key)
+                manifest["manifest_s3_uri"] = f"s3://{s3_bucket}/{manifest_s3_key}"
+                print("Uploaded processed files and manifest to S3.")
+            except Exception as e:
+                print(f"Warning: failed to upload processed files to S3: {e}")
+        else:
+            print("No S3 bucket configured; skipping upload of processed files.")
+
         # log manifest and a few useful params to MLflow if a run is active
         if mlflow.active_run() is not None:
             try:
@@ -273,6 +298,12 @@ def preprocess_data(X: pd.DataFrame,
             manifest["preprocessor"] = {"path": preproc_path, "sha256": _file_sha256(preproc_path)}
         except Exception as e:
             print(f"Warning: failed to save/log preprocessor: {e}")
+        # overwrite manifest file with any added s3 URIs
+        try:
+            with open(manifest_path, "w") as fh:
+                json.dump(manifest, fh, indent=2)
+        except Exception:
+            pass
 
 def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=False, dpi=80, mlflow_log=True):
     os.makedirs(outdir, exist_ok=True)
@@ -337,6 +368,8 @@ def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, r
     """
     Run data pipeline and log as MLflow run (nested if called from an active run).
     """
+    load_dotenv(".env", override=True)
+    
     mlflow.set_experiment("gradient_boosted_regression")
     # choose nested behavior depending on whether a run is already active
     if mlflow.active_run() is None:
