@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 class Cfg:
     """Configuration for training"""
-    processed_dir: str = "/shared/data/processed"
-    model_dir: str = "/shared/models"
+    processed_dir: str = "shared/data/processed"
+    model_dir: str = "shared/models"
 
 def train_gbr(
     X: pd.DataFrame,

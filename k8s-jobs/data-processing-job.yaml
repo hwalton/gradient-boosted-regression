@@ -15,7 +15,7 @@ spec:
           value: "http://mlflow-service:5000"
         volumeMounts:
         - name: shared-storage
-          mountPath: /shared
+          mountPath: /app/shared
         workingDir: /app
       volumes:
       - name: shared-storage
