@@ -25,6 +25,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.impute import SimpleImputer
 
+class Cfg:
+    """Configuration for data processing"""
+    raw_dir: str = "shared/data/raw"        # Use absolute paths
+    drifted_dir: str = "shared/data/drifted"
+    processed_dir: str = "shared/data/processed"
+    reports_dir: str = "shared/reports"
+
 def _file_sha256(path: str) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -50,8 +57,8 @@ def build_log1p_preprocessor(cols: List[str]) -> ColumnTransformer:
 
 def save_log1p_preprocessor(
     X_ref: pd.DataFrame,
-    cols: Optional[List[str]] = None,
-    path: str = "models/preprocessor.joblib"
+    path: str,
+    cols: Optional[List[str]] = None
 ) -> str:
     """
     Build & persist a simple log1p preprocessor using X_ref to infer columns if needed.
@@ -85,12 +92,6 @@ def save_log1p_preprocessor(
         print(f"Warning: failed to log preprocessor to MLflow: {e}")
 
     return path
-
-class Cfg:
-    """Configuration for data processing"""
-    raw_dir: str = "shared/data/raw"        # Use absolute paths
-    drifted_dir: str = "shared/data/drifted"
-    processed_dir: str = "shared/data/processed"
 
 def get_data(save_csv=True):
     """Load California housing dataset as pandas DataFrames"""
@@ -269,13 +270,13 @@ def preprocess_data(X: pd.DataFrame,
 
         # save and log the deterministic log1p preprocessor fitted on X_train
         try:
-            preproc_path = save_log1p_preprocessor(X_train, path=os.path.join("shared/models", "preprocessor.joblib"))
+            preproc_path = save_log1p_preprocessor(X_train, os.path.join("shared/models", "preprocessor.joblib"))
             manifest["preprocessor"] = {"path": preproc_path, "sha256": _file_sha256(preproc_path)}
         except Exception as e:
             print(f"Warning: failed to save/log preprocessor: {e}")
 
-def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=False, dpi=80, mlflow_log=True):
-    os.makedirs(outdir, exist_ok=True)
+def eda(X: pd.DataFrame, y: pd.Series, sample=2000, kde=False, dpi=80, mlflow_log=True):
+    os.makedirs(Cfg.reports_dir, exist_ok=True)
 
     df = X.copy()
     df["target"] = y
@@ -285,7 +286,7 @@ def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=F
     # distribution plots for numeric features
     numeric = df.select_dtypes(include=[np.number]).columns.tolist()
     skewness = df[numeric].skew().sort_values(ascending=False)
-    skew_path = os.path.join(outdir, "skewness.csv")
+    skew_path = os.path.join(Cfg.reports_dir, "skewness.csv")
     skewness.to_csv(skew_path)
 
     # histograms (one figure per column)
@@ -295,7 +296,7 @@ def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=F
         # disable KDE (expensive) and limit bins
         sns.histplot(df[col].dropna(), kde=kde, bins=40)
         plt.title(f"Distribution: {col}")
-        p = os.path.join(outdir, f"hist_{col}.png")
+        p = os.path.join(Cfg.reports_dir, f"hist_{col}.png")
         plt.tight_layout()
         plt.savefig(p)
         plt.close()
@@ -305,14 +306,14 @@ def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=F
     corr = df[numeric].corr()
     plt.figure(figsize=(10, 8))
     sns.heatmap(corr, annot=False, cmap="vlag", center=0)
-    corr_path = os.path.join(outdir, "corr_heatmap.png")
+    corr_path = os.path.join(Cfg.reports_dir, "corr_heatmap.png")
     plt.tight_layout()
     plt.savefig(corr_path)
     plt.close()
 
     # simple summary
     summary = df[numeric].describe().T
-    summary_path = os.path.join(outdir, "summary.csv")
+    summary_path = os.path.join(Cfg.reports_dir, "summary.csv")
     summary.to_csv(summary_path)
 
     if mlflow_log and mlflow.active_run() is not None:
@@ -321,7 +322,7 @@ def eda(X: pd.DataFrame, y: pd.Series, outdir="data/reports", sample=2000, kde=F
             mlflow.log_artifact(corr_path, artifact_path="eda")
             mlflow.log_artifact(summary_path, artifact_path="eda")
             for col in numeric:
-                p = os.path.join(outdir, f"hist_{col}.png")
+                p = os.path.join(Cfg.reports_dir, f"hist_{col}.png")
                 if os.path.exists(p):
                     mlflow.log_artifact(p, artifact_path="eda")
             # log top skewed features as params for quick reference

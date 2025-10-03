@@ -16,14 +16,22 @@ spec:
       containers:
       - name: mlflow
         image: python:3.10-slim
-        command: ["sh", "-c", "pip install mlflow && mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts"]
+        command: ["sh", "-c"]
+        args:
+        - |
+          pip install mlflow &&
+          mkdir -p /app/shared/mlflow &&
+          mlflow server --host 0.0.0.0 --port 5000 \
+            --backend-store-uri sqlite:////app/shared/mlflow.db \
+            --default-artifact-root /app/shared/artifacts
         ports:
         - containerPort: 5000
         volumeMounts:
-        - name: mlflow-data
-          mountPath: /mlflow
+        - name: shared-data
+          mountPath: /app/shared
+        workingDir: /app
       volumes:
-      - name: mlflow-data
+      - name: shared-data
         persistentVolumeClaim:
           claimName: ml-data-pvc
 ---
