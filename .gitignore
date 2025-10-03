@@ -14,3 +14,5 @@ data/reports/
 data/processed/
 data/raw/
 data/drifted/
+
+venv
