@@ -1,18 +1,12 @@
-name: gradient-boosted-regression
+name: gbr
 channels:
-  - conda-forge
   - defaults
 dependencies:
   - python=3.10
-  - pandas
+  - awscli
   - numpy
-  - scikit-learn
+  - pandas
+  - pyarrow
   - seaborn
-  - pip
-  - pip:
-    - mlflow
-    - kaggle
-    - pytest
-    - awscli
-    - boto3
-    - sagemaker
+  - boto3
+  - scikit-learn

@@ -1,0 +1,6 @@
+{
+  "model_bucket":"my-ml-bucket-harvey-1759250288",
+  "processed_prefix":"processed/",
+  "model_key":"models/gbr-joblib-test.joblib",
+  "param_grid": {"n_estimators":[10], "learning_rate":[0.1], "max_depth":[3], "subsample":[1.0]}
+}

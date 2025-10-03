@@ -1,17 +1,19 @@
 import logging
 import os
-from typing import Tuple, Dict, Any, List
+import itertools
+from typing import Tuple, Dict, Any, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import root_mean_squared_error, mean_absolute_error, r2_score
+# sklearn does not provide root_mean_squared_error; use mean_squared_error and sqrt
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import mlflow
 import hashlib
-import itertools
-
 from utils.utils import load_processed_data
 
+# module logger
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 class Cfg:
@@ -23,7 +25,7 @@ def train_gbr(
     X: pd.DataFrame,
     y: pd.Series,
     random_state: int = 42,
-    params: Dict[str, Any] = None
+    params: Optional[Dict[str, Any]] = None
 ) -> GradientBoostingRegressor:
     params = params or {
         "n_estimators": 200,
@@ -38,7 +40,7 @@ def train_gbr(
 
 def evaluate(model, X, y) -> Dict[str, float]:
     preds = model.predict(X)
-    rmse = root_mean_squared_error(y, preds)
+    rmse = float(np.sqrt(mean_squared_error(y, preds)))
     mae = mean_absolute_error(y, preds)
     r2 = r2_score(y, preds)
     return {"rmse": float(rmse), "mae": float(mae), "r2": float(r2)}
@@ -67,9 +69,9 @@ def save_model(
     model,
     model_dir: str,
     model_name: str = "gbr.joblib",
-    params: Dict[str, Any] | None = None,
-    train_metrics: Dict[str, float] | None = None,
-    val_metrics: Dict[str, float] | None = None,
+    params: Optional[Dict[str, Any]] = None,
+    train_metrics: Optional[Dict[str, float]] = None,
+    val_metrics: Optional[Dict[str, float]] = None,
 ) -> str:
     """
     Persist model to model_dir/model_name and (optionally) log artifact to MLflow.
@@ -141,7 +143,6 @@ def main():
     Minimal training entrypoint: loads processed data and prints basic info.
     Extend this function to add model training, evaluation, and persistence.
     """
-
     processed_dir = Cfg.processed_dir
 
     try:
@@ -211,7 +212,11 @@ def main():
             best_params = None
             best_model = None
 
-        logger.info("Reusing best model from tuning (no retrain)")
+        # ensure we have a model to evaluate/train
+        if best_model is None:
+            logger.info("Tuning produced no model; training default model with train_gbr()")
+            best_model = train_gbr(X_train, y_train, random_state=42, params=best_params)
+        logger.info("Reusing best model from tuning (or default trained model)")
         model = best_model
         train_metrics = evaluate(model, X_train, y_train)
         val_metrics = evaluate(model, X_val, y_val)
@@ -241,5 +246,4 @@ def main():
 
 if __name__ == "__main__":
     # Configure logging to show INFO messages on the console
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     main()
