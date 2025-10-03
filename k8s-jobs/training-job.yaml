@@ -1,0 +1,27 @@
+# k8s-jobs/training-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: training-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: trainer
+        image: gbr-train:latest
+        imagePullPolicy: Never  # for local minikube images
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service:5000"
+        volumeMounts:
+        - name: shared-storage
+          mountPath: /app/data
+        - name: shared-storage
+          mountPath: /app/models
+          subPath: models  # optional: separate subdirectory
+        workingDir: /app
+      volumes:
+      - name: shared-storage
+        persistentVolumeClaim:
+          claimName: ml-data-pvc
+      restartPolicy: Never

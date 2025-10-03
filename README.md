@@ -15,3 +15,15 @@
    mlflow ui --port 5000 --host 127.0.0.1
    ```
    Access the UI at `http://localhost:5000`.
+
+
+# Development Kubernetes Setup
+## Point your shell to minikube's docker daemon
+eval $(minikube docker-env)
+
+## Build images directly in minikube
+docker build -f Dockerfile.data -t gbr-data:latest .
+docker build -f Dockerfile.train -t gbr-train:latest .
+docker build -f Dockerfile.serve -t gbr-serve:latest .
+
+## No push needed - images are already in minikube

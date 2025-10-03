@@ -1,0 +1,9 @@
+# Dockerfile.train  
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY training/ ./training/
+COPY utils/ ./utils/
+ENV PYTHONPATH=/app
+CMD ["python", "-m", "training.train"]

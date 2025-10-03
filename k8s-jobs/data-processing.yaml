@@ -1,0 +1,27 @@
+# k8s-jobs/data-processing.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-processing-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: data-processor
+        image: gbr-data:latest  # Use local image
+        imagePullPolicy: Never  # Important for minikube
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service:5000"
+        volumeMounts:
+        - name: shared-storage
+          mountPath: /app/data
+        - name: shared-storage
+          mountPath: /app/models
+          subPath: models
+        workingDir: /app
+      volumes:
+      - name: shared-storage
+        persistentVolumeClaim:
+          claimName: ml-data-pvc
+      restartPolicy: Never

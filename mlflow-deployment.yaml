@@ -1,0 +1,44 @@
+# mlflow-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow-server
+  template:
+    metadata:
+      labels:
+        app: mlflow-server
+    spec:
+      containers:
+      - name: mlflow
+        image: python:3.10-slim
+        command: ["sh", "-c"]
+        args:
+        - |
+          pip install mlflow boto3 psycopg2-binary &&
+          mlflow server --host 0.0.0.0 --port 5000 \
+            --backend-store-uri postgresql://user:pass@postgres:5432/mlflow \
+            --default-artifact-root s3://your-bucket/mlflow-artifacts
+        ports:
+        - containerPort: 5000
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          value: "your-key"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "your-secret"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-service
+spec:
+  selector:
+    app: mlflow-server
+  ports:
+  - port: 5000
+    targetPort: 5000
+  type: LoadBalancer
