@@ -88,9 +88,9 @@ def save_log1p_preprocessor(
 
 class Cfg:
     """Configuration for data processing"""
-    raw_dir: str = "data/raw"
-    drifted_dir: str = "data/drifted"
-    processed_dir: str = "data/processed"
+    raw_dir: str = "/shared/data/raw"        # Use absolute paths
+    drifted_dir: str = "/shared/data/drifted"
+    processed_dir: str = "/shared/data/processed"
 
 def get_data(save_csv=True):
     """Load California housing dataset as pandas DataFrames"""
@@ -269,7 +269,7 @@ def preprocess_data(X: pd.DataFrame,
 
         # save and log the deterministic log1p preprocessor fitted on X_train
         try:
-            preproc_path = save_log1p_preprocessor(X_train, path=os.path.join("models", "preprocessor.joblib"))
+            preproc_path = save_log1p_preprocessor(X_train, path=os.path.join("/shared/models", "preprocessor.joblib"))
             manifest["preprocessor"] = {"path": preproc_path, "sha256": _file_sha256(preproc_path)}
         except Exception as e:
             print(f"Warning: failed to save/log preprocessor: {e}")
@@ -344,14 +344,14 @@ def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, r
             X, y = get_data(save_csv=save_csv)
             simulate_drift(X, y)
             preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
-            eda(X, y)
+            # eda(X, y)
 
     else:
         with mlflow.start_run(run_name="data_preprocessing", nested=True):
             X, y = get_data(save_csv=save_csv)
             simulate_drift(X, y)
             preprocess_data(X, y, test_size=test_size, val_size=val_size, random_state=random_state, save_csv=save_csv)
-            eda(X, y)
+            # eda(X, y)
 
 if __name__ == "__main__":
     # When running this module directly, let main() decide run nesting.

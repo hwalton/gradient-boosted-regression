@@ -8,17 +8,14 @@ spec:
     spec:
       containers:
       - name: data-processor
-        image: gbr-data:latest  # Use local image
-        imagePullPolicy: Never  # Important for minikube
+        image: gbr-data:latest
+        imagePullPolicy: Never
         env:
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow-service:5000"
         volumeMounts:
         - name: shared-storage
-          mountPath: /app/data
-        - name: shared-storage
-          mountPath: /app/models
-          subPath: models
+          mountPath: /shared
         workingDir: /app
       volumes:
       - name: shared-storage

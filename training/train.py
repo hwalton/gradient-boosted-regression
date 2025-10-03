@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 class Cfg:
     """Configuration for training"""
-    processed_dir: str = "data/processed"
-    model_dir: str = "models"
+    processed_dir: str = "/shared/data/processed"
+    model_dir: str = "/shared/models"
 
 def train_gbr(
     X: pd.DataFrame,
@@ -39,7 +39,7 @@ def train_gbr(
 
 def evaluate(model, X, y) -> Dict[str, float]:
     preds = model.predict(X)
-    rmse = mean_squared_error(y, preds, squared=False)
+    rmse = mean_squared_error(y, preds)
     mae = mean_absolute_error(y, preds)
     r2 = r2_score(y, preds)
     return {"rmse": float(rmse), "mae": float(mae), "r2": float(r2)}
