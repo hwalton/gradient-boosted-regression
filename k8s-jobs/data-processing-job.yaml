@@ -13,6 +13,8 @@ spec:
         env:
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow-service:5000"
+        - name: MLFLOW_DEFAULT_ARTIFACT_ROOT
+          value: "/app/shared/artifacts"
         volumeMounts:
         - name: shared-storage
           mountPath: /app/shared

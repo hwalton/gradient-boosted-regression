@@ -15,15 +15,14 @@ spec:
     spec:
       containers:
       - name: mlflow
-        image: python:3.10-slim
-        command: ["sh", "-c"]
+        image: gbr-mlflow:latest  # Use custom image
+        imagePullPolicy: Never    # Use local image
+        command: ["mlflow", "server"]
         args:
-        - |
-          pip install mlflow &&
-          mkdir -p /app/shared/mlflow &&
-          mlflow server --host 0.0.0.0 --port 5000 \
-            --backend-store-uri sqlite:////app/shared/mlflow.db \
-            --default-artifact-root /app/shared/artifacts
+        - "--host=0.0.0.0"
+        - "--port=5000"
+        - "--backend-store-uri=sqlite:////app/shared/mlflow.db"
+        - "--default-artifact-root=/app/shared/artifacts"
         ports:
         - containerPort: 5000
         volumeMounts:

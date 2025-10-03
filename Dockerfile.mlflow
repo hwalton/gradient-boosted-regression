@@ -1,0 +1,16 @@
+FROM python:3.10-slim
+
+# Install MLflow and dependencies
+RUN pip install --no-cache-dir mlflow
+
+# Set working directory
+WORKDIR /app
+
+# Create shared directory
+RUN mkdir -p /app/shared
+
+# Expose MLflow port
+EXPOSE 5000
+
+# Default command (can be overridden)
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000"]
