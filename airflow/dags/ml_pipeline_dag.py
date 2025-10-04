@@ -20,12 +20,12 @@ default_args = {
 
 # Create DAG
 dag = DAG(
-    'ml_pipeline_with_drift_detection',
+    'ml_pipeline_with_performance_monitoring',
     default_args=default_args,
-    description='ML Pipeline with Drift Detection and Retraining',
+    description='ML Pipeline with Performance Monitoring and Retraining',
     schedule_interval=timedelta(hours=24),
     catchup=False,
-    tags=['ml', 'drift-detection', 'retraining']
+    tags=['ml', 'performance-monitoring', 'retraining']
 )
 
 # Kubernetes configuration
@@ -39,43 +39,44 @@ volume = {
     'persistent_volume_claim': {'claim_name': 'ml-data-pvc'}
 }
 
-def check_drift_status(**context):
-    """Check drift report and decide next step"""
-    drift_report_path = "/tmp/ml-data/monitoring/drift_report.json"
+def check_performance_status(**context):
+    """Check performance monitoring report and decide next step"""
+    performance_report_path = "/app/shared/monitoring/model_performance_report.json"
     
     # For local testing, use a different path
-    if not os.path.exists(drift_report_path):
-        drift_report_path = "shared/monitoring/drift_report.json"
+    if not os.path.exists(performance_report_path):
+        performance_report_path = "shared/monitoring/model_performance_report.json"
     
-    if not os.path.exists(drift_report_path):
-        print("No drift report found, proceeding with retraining")
+    if not os.path.exists(performance_report_path):
+        print("No performance report found, proceeding with retraining")
         return 'retrain_pipeline'
     
     try:
-        with open(drift_report_path, 'r') as f:
-            drift_report = json.load(f)
+        with open(performance_report_path, 'r') as f:
+            performance_report = json.load(f)
         
-        overall_drift = drift_report.get('overall_drift', False)
-        drift_score = drift_report.get('drift_score', 0)
+        overall_degraded = performance_report.get('overall_degraded', False)
+        degraded_metrics = performance_report.get('degraded_metrics', [])
         
-        print(f"Drift detected: {overall_drift}, Drift score: {drift_score}")
+        print(f"Performance degraded: {overall_degraded}")
+        print(f"Degraded metrics: {degraded_metrics}")
         
-        if overall_drift and drift_score > 0.3:  # Retrain if >30% features drifted
+        if overall_degraded:
             return 'retrain_pipeline'
         else:
             return 'skip_retraining'
             
     except Exception as e:
-        print(f"Error reading drift report: {e}")
+        print(f"Error reading performance report: {e}")
         return 'retrain_pipeline'  # Default to retraining on error
 
-# 1. Drift Detection Task
-drift_detection_task = KubernetesPodOperator(
-    task_id='detect_drift',
-    name='drift-detection-pod',
+# 1. Performance Monitoring Task
+performance_monitoring_task = KubernetesPodOperator(
+    task_id='monitor_performance',
+    name='performance-monitoring-pod',
     namespace='default',
-    image='gbr-data:latest',  # Use same image as data processing
-    cmds=['python', '-m', 'monitoring.drift_detection'],
+    image='gbr-ml:latest',
+    cmds=['python', '-m', 'src.monitoring.monitor'],
     env_vars=[
         {'name': 'MLFLOW_TRACKING_URI', 'value': 'http://mlflow-service:5000'}
     ],
@@ -85,20 +86,20 @@ drift_detection_task = KubernetesPodOperator(
     dag=dag
 )
 
-# 2. Check Drift Status (Python function)
-check_drift_task = BranchPythonOperator(
-    task_id='check_drift_status',
-    python_callable=check_drift_status,
+# 2. Check Performance Status (Python function)
+check_performance_task = BranchPythonOperator(
+    task_id='check_performance_status',
+    python_callable=check_performance_status,
     dag=dag
 )
 
-# 3a. Data Processing (if drift detected)
+# 3a. Data Processing (if retraining needed)
 data_processing_task = KubernetesPodOperator(
     task_id='retrain_pipeline',
     name='data-processing-pod',
     namespace='default',
-    image='gbr-data:latest',
-    cmds=['python', '-m', 'data.data'],
+    image='gbr-ml:latest',
+    cmds=['python', '-m', 'src.data.data'],
     env_vars=[
         {'name': 'MLFLOW_TRACKING_URI', 'value': 'http://mlflow-service:5000'}
     ],
@@ -113,8 +114,8 @@ training_task = KubernetesPodOperator(
     task_id='train_model',
     name='training-pod',
     namespace='default',
-    image='gbr-train:latest',
-    cmds=['python', '-m', 'training.train'],
+    image='gbr-ml:latest',
+    cmds=['python', '-m', 'src.training.train'],
     env_vars=[
         {'name': 'MLFLOW_TRACKING_URI', 'value': 'http://mlflow-service:5000'}
     ],
@@ -131,18 +132,18 @@ restart_serving_task = BashOperator(
     dag=dag
 )
 
-# 4. Skip Task (if no significant drift)
+# 4. Skip Task (if performance is acceptable)
 skip_task = BashOperator(
     task_id='skip_retraining',
-    bash_command='echo "No significant drift detected, skipping retraining"',
+    bash_command='echo "Model performance acceptable, skipping retraining"',
     dag=dag
 )
 
 # Define task dependencies
-drift_detection_task >> check_drift_task
+performance_monitoring_task >> check_performance_task
 
-# Branch based on drift detection
-check_drift_task >> [data_processing_task, skip_task]
+# Branch based on performance monitoring
+check_performance_task >> [data_processing_task, skip_task]
 
 # If retraining, continue with training and serving restart
 data_processing_task >> training_task >> restart_serving_task
