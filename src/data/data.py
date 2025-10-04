@@ -343,6 +343,8 @@ def main(save_csv: bool = True, test_size: float = 0.2, val_size: float = 0.2, r
     """
     Run data pipeline and log as MLflow run (nested if called from an active run).
     """
+    mlflow_uri = os.getenv('MLFLOW_TRACKING_URI', 'http://mlflow-service:5000')
+    mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment("gradient_boosted_regression")
     # choose nested behavior depending on whether a run is already active
     if mlflow.active_run() is None:

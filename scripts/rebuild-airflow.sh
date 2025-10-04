@@ -42,8 +42,10 @@ except Exception as e:
 "
 
 # # Kill existing processes
-# pkill -f "airflow" 2>/dev/null || true
+# pkill -TERM -f airflow
 # sleep 3
+# pkill -9 -f airflow
+
 
 # Start in standalone mode
 echo "Starting Airflow in standalone mode..."

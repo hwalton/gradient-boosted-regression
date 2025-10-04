@@ -265,7 +265,9 @@ def main():
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
+    mlflow_uri = os.getenv('MLFLOW_TRACKING_URI', 'http://mlflow-service:5000')
+    mlflow.set_tracking_uri(mlflow_uri)    
     mlflow.set_experiment("gradient_boosted_regression")
     
     # Determine if we should create a new run or nest under existing

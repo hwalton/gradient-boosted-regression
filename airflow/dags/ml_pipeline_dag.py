@@ -30,7 +30,7 @@ dag = DAG(
     'ml_pipeline_with_performance_monitoring',
     default_args=default_args,
     description='ML Pipeline with Performance Monitoring and Retraining',
-    schedule=timedelta(hours=24),  # Changed from schedule_interval to schedule
+    schedule=timedelta(hours=24),
     catchup=False,
     tags=['ml', 'performance-monitoring', 'retraining']
 )
@@ -77,7 +77,7 @@ def check_performance_status(**context):
             
     except Exception as e:
         print(f"Error reading performance report: {e}")
-        return 'full_retrain_pipeline'  # Default to retraining on error
+        return 'full_retrain_pipeline'
 
 # Environment variables
 env_vars = [
@@ -90,6 +90,7 @@ generate_data_task = KubernetesPodOperator(
     name='data-generation-pod',
     namespace='default',
     image='gbr-ml:latest',
+    image_pull_policy='Never',  # ADD THIS LINE
     cmds=['python', '-m', 'src.data.data'],
     env_vars=env_vars,
     volumes=[volume],
@@ -104,6 +105,7 @@ performance_monitoring_task = KubernetesPodOperator(
     name='performance-monitoring-pod',
     namespace='default',
     image='gbr-ml:latest',
+    image_pull_policy='Never',  # ADD THIS LINE
     cmds=['python', '-m', 'src.monitoring.monitor'],
     env_vars=env_vars,
     volumes=[volume],
@@ -125,6 +127,7 @@ full_retrain_task = KubernetesPodOperator(
     name='full-retrain-pod',
     namespace='default',
     image='gbr-ml:latest',
+    image_pull_policy='Never',  # ADD THIS LINE
     cmds=['python', '-m', 'src.training.train'],
     env_vars=env_vars,
     volumes=[volume],
@@ -148,15 +151,6 @@ skip_task = BashOperator(
 )
 
 # TASK DEPENDENCIES:
-# 1. Always generate fresh drifted data first
-# 2. Monitor performance on that fresh data
-# 3. Branch based on performance results
-# 4. Either retrain or skip
-
 generate_data_task >> performance_monitoring_task >> check_performance_task
-
-# Branch based on performance monitoring
 check_performance_task >> [full_retrain_task, skip_task]
-
-# If retraining, restart serving after training
 full_retrain_task >> restart_serving_task

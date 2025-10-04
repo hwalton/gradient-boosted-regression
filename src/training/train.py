@@ -134,6 +134,8 @@ def main():
     logger.info("y_train length: %d, y_val length: %d, y_test length: %d", len(y_train), len(y_val), len(y_test))
 
     # Start an MLflow run and log dataset manifest/checksums before training
+    mlflow_uri = os.getenv('MLFLOW_TRACKING_URI', 'http://mlflow-service:5000')
+    mlflow.set_tracking_uri(mlflow_uri)
     mlflow.set_experiment("gradient_boosted_regression")
     # start top-level run if none active, otherwise create a nested training run
     if mlflow.active_run() is None:
