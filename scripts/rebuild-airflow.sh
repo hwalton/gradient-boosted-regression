@@ -3,7 +3,8 @@
 echo "Deploying Airflow DAG..."
 
 # Set Airflow home
-export AIRFLOW_HOME=/home/harvey/airflow
+export AIRFLOW_HOME=/home/${USER}/airflow
+export AIRFLOW__CORE__LOAD_EXAMPLES=False
 
 # Copy DAG to Airflow
 mkdir -p $AIRFLOW_HOME/dags
@@ -22,7 +23,7 @@ source airvenv/bin/activate
 export AIRFLOW__CORE__LOAD_EXAMPLES=False
 cd $AIRFLOW_HOME
 
-airflow webserver --port 8081 --daemon
+airflow api-server --port 8081 --daemon
 sleep 3
 airflow scheduler --daemon
 

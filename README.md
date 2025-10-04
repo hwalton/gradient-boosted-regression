@@ -17,8 +17,9 @@
    Access the UI at `http://localhost:5000`.
 
 # Install airflow
+https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
 ## Set AIRFLOW_HOME
-`export AIRFLOW_HOME=/home/harvey/airflow`
+`export AIRFLOW_HOME=/home/${USER}/airflow`
 `mkdir -p $AIRFLOW_HOME`
 
 ## Create and activate a new virtual environment
@@ -42,3 +43,5 @@ airflow scheduler
 # Run ML pipeline
 kubectl apply -f k8s-jobs/data-processing-job.yaml
 kubectl apply -f k8s-jobs/training-job.yaml
+
+{"admin": "SURFhSAssN3eEHrt"}
