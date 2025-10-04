@@ -318,48 +318,16 @@ def eda(X: pd.DataFrame, y: pd.Series, sample=2000, kde=False, dpi=80, mlflow_lo
 
     if mlflow_log and mlflow.active_run() is not None:
         try:
-            print(f"DEBUG: Current working directory: {os.getcwd()}")
-            print(f"DEBUG: Reports directory: {Cfg.reports_dir}")
-            print(f"DEBUG: Full reports path: {os.path.abspath(Cfg.reports_dir)}")
-            
-            # Check if files exist
-            print(f"DEBUG: Skew file exists: {os.path.exists(skew_path)} at {skew_path}")
-            print(f"DEBUG: Corr file exists: {os.path.exists(corr_path)} at {corr_path}")
-            
-            if os.path.exists(skew_path):
-                print(f"DEBUG: Skew file size: {os.path.getsize(skew_path)} bytes")
-            if os.path.exists(corr_path):
-                print(f"DEBUG: Corr file size: {os.path.getsize(corr_path)} bytes")
-                
-            # Get MLflow run info
-            run = mlflow.active_run()
-            print(f"DEBUG: Active run ID: {run.info.run_id}")
-            print(f"DEBUG: MLflow tracking URI: {os.environ.get('MLFLOW_TRACKING_URI', 'Not set')}")
-            print(f"DEBUG: Artifact URI: {run.info.artifact_uri}")
-            
-            # Try to log artifacts with error handling
-            print("DEBUG: Attempting to log skew_path...")
+            # Log artifacts to MLflow
             mlflow.log_artifact(skew_path, artifact_path="eda")
-            print("DEBUG: ✓ Successfully logged skew_path")
-            
-            print("DEBUG: Attempting to log corr_path...")
             mlflow.log_artifact(corr_path, artifact_path="eda")
-            print("DEBUG: ✓ Successfully logged corr_path")
-            
-            print("DEBUG: Attempting to log summary_path...")
             mlflow.log_artifact(summary_path, artifact_path="eda")
-            print("DEBUG: ✓ Successfully logged summary_path")
             
             # Log histograms
             for col in numeric:
                 p = os.path.join(Cfg.reports_dir, f"hist_{col}.png")
-                print(f"DEBUG: Checking histogram for {col} at {p}")
                 if os.path.exists(p):
-                    print(f"DEBUG: File exists, size: {os.path.getsize(p)} bytes")
                     mlflow.log_artifact(p, artifact_path="eda")
-                    print(f"DEBUG: ✓ Successfully logged histogram for {col}")
-                else:
-                    print(f"DEBUG: ✗ Histogram file not found: {p}")
                     
             # log top skewed features as params for quick reference
             top_skew = skewness.head(5).to_dict()
@@ -367,9 +335,7 @@ def eda(X: pd.DataFrame, y: pd.Series, sample=2000, kde=False, dpi=80, mlflow_lo
                 mlflow.log_param(f"skew_top_{k}", float(v))
                 
         except Exception as e:
-            print(f"ERROR: MLflow logging failed: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"Warning: MLflow logging failed: {e}")
 
     return {"skewness_csv": skew_path, "corr_png": corr_path, "summary_csv": summary_path}
 
