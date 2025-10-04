@@ -8,8 +8,9 @@ spec:
     spec:
       containers:
       - name: trainer
-        image: gbr-train:latest
+        image: gbr-ml:latest
         imagePullPolicy: Never
+        command: ["python", "-m", "src.training.train"]
         env:
         - name: MLFLOW_TRACKING_URI
           value: "http://mlflow-service:5000"

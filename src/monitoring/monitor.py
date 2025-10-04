@@ -1,5 +1,9 @@
 import mlflow
 
+# Paths (match training/data defaults) - updated for shared volume
+MODEL_PATH = os.environ.get("MODEL_PATH", "/app/shared/models/gbr.joblib")
+PREPROC_PATH = os.environ.get("PREPROC_PATH", "/app/shared/models/preprocessor.joblib")
+
 def main():
     """
     Run data pipeline and log as MLflow run (nested if called from an active run).

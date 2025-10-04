@@ -5,8 +5,10 @@ eval $(minikube docker-env)
 
 # Build Docker images
 echo "Building Docker images..."
-docker build -f Dockerfile.mlflow -t gbr-mlflow:latest .
-docker build -f Dockerfile.serve -t gbr-serve:latest .
+docker build -f Dockerfile -t gbr-ml:latest .
+kubectl delete job data-processing-job
+kubectl delete job training-job
+
 
 # Delete existing deployments (ignore errors if they don't exist)
 echo "Cleaning up existing deployments..."

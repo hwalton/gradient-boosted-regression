@@ -14,8 +14,9 @@ spec:
     spec:
       containers:
       - name: serving
-        image: gbr-serve:latest
+        image: gbr-ml:latest
         imagePullPolicy: Never
+        command: ["python", "-m", "src.serving.serve"]
         env:
         - name: MODEL_PATH
           value: "/app/shared/models/gbr.joblib"
