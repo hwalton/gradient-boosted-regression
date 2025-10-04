@@ -16,14 +16,29 @@
    ```
    Access the UI at `http://localhost:5000`.
 
+# Install airflow
+## Set AIRFLOW_HOME
+`export AIRFLOW_HOME=/home/harvey/airflow`
+`mkdir -p $AIRFLOW_HOME`
 
-# Development Kubernetes Setup
-## Point your shell to minikube's docker daemon
-eval $(minikube docker-env)
+## Create and activate a new virtual environment
+`python -m venv airvenv`
+`source airvenv/bin/activate`
 
-## Build images directly in minikube
-docker build -f Dockerfile.data -t gbr-data:latest .
-docker build -f Dockerfile.train -t gbr-train:latest .
-docker build -f Dockerfile.serve -t gbr-serve:latest .
+## Install Apache Airflow with Kubernetes provider
+`pip install -r requirements.airflow.txt`
 
-## No push needed - images are already in minikube
+## Initialize the Airflow database
+`airflow db init`
+
+## Start Airflow webserver and scheduler
+airflow webserver --port 8081 --daemon
+airflow scheduler --daemon
+
+# Kubernetes Setup
+./scripts/rebuild-deployments.sh
+./scripts/rebuild-jobs.sh
+
+# Run ML pipeline
+kubectl apply -f k8s-jobs/data-processing-job.yaml
+kubectl apply -f k8s-jobs/training-job.yaml
