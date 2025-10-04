@@ -2,8 +2,7 @@ FROM python:3.10-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-COPY serving/ ./serving/
-COPY utils/ ./utils/
+COPY src/ ./src/
 ENV PYTHONPATH=/app
 EXPOSE 8080
-CMD ["python", "-m", "serving.serve"]
+CMD ["python", "-m", "src.serving.serve"]

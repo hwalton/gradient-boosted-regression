@@ -27,7 +27,7 @@ from sklearn.impute import SimpleImputer
 
 class Cfg:
     """Configuration for data processing"""
-    raw_dir: str = "shared/data/raw"        # Use absolute paths
+    raw_dir: str = "shared/data/raw"
     drifted_dir: str = "shared/data/drifted"
     processed_dir: str = "shared/data/processed"
     reports_dir: str = "shared/reports"

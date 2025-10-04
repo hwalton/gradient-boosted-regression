@@ -11,7 +11,7 @@ import hashlib
 import itertools
 
 
-from utils.utils import load_processed_data
+from src.utils.utils import load_processed_data
 
 logger = logging.getLogger(__name__)
 
