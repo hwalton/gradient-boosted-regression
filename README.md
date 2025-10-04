@@ -17,31 +17,15 @@
    Access the UI at `http://localhost:5000`.
 
 # Install airflow
+
+## Download tar
 https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
-## Set AIRFLOW_HOME
-`export AIRFLOW_HOME=/home/${USER}/airflow`
-`mkdir -p $AIRFLOW_HOME`
 
 ## Create and activate a new virtual environment
 `python -m venv airvenv`
 `source airvenv/bin/activate`
 
-## Install Apache Airflow with Kubernetes provider
-`pip install -r requirements.airflow.txt`
+## Run install script
+./scripts/install_airflow.sh
 
-## Initialize the Airflow database
-`airflow db init`
-
-## Start Airflow webserver and scheduler
-airflow webserver --port 8081
-airflow scheduler
-
-# Kubernetes Setup
-./scripts/rebuild-deployments.sh
-./scripts/rebuild-jobs.sh
-
-# Run ML pipeline
-kubectl apply -f k8s-jobs/data-processing-job.yaml
-kubectl apply -f k8s-jobs/training-job.yaml
-
-{"admin": "SURFhSAssN3eEHrt"}
+##

@@ -25,6 +25,3 @@ python -c "from airflow.providers.kubernetes.operators.kubernetes_pod import Kub
 
 # Initialize
 airflow db init
-
-# Start
-airflow standalone

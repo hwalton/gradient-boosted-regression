@@ -6,26 +6,60 @@ echo "Deploying Airflow DAG..."
 export AIRFLOW_HOME=/home/${USER}/airflow
 export AIRFLOW__CORE__LOAD_EXAMPLES=False
 
+# Activate environment
+source airvenv/bin/activate
+
+# Test the correct import path (don't test the wrong one anymore)
+echo "Testing Kubernetes provider import..."
+python -c "
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+    print('✅ Kubernetes provider available')
+except ImportError as e:
+    print(f'❌ Import failed: {e}')
+    exit(1)
+"
+
 # Copy DAG to Airflow
 mkdir -p $AIRFLOW_HOME/dags
 cp -r airflow/dags/* $AIRFLOW_HOME/dags/
 
 echo "DAG copied to $AIRFLOW_HOME/dags/"
 
-# Restart Airflow to pick up new DAG
-echo "Restarting Airflow..."
-pkill -f "airflow webserver" 2>/dev/null || true
-pkill -f "airflow scheduler" 2>/dev/null || true
-sleep 2
+# Test DAG import after fixing
+echo "Testing DAG import..."
+cd $AIRFLOW_HOME
+python -c "
+import sys
+sys.path.append('dags')
+try:
+    import ml_pipeline_dag
+    print('✅ DAG imports successfully')
+except Exception as e:
+    print(f'❌ DAG import failed: {e}')
+    print('Check the import paths in your DAG file')
+    exit(1)
+"
 
-# Activate environment and start services
-source airvenv/bin/activate
-export AIRFLOW__CORE__LOAD_EXAMPLES=False
+# # Kill existing processes
+# pkill -f "airflow" 2>/dev/null || true
+# sleep 3
+
+# Start in standalone mode
+echo "Starting Airflow in standalone mode..."
 cd $AIRFLOW_HOME
 
-airflow api-server --port 8081 --daemon
-sleep 3
-airflow scheduler --daemon
+# Run standalone in background
+nohup airflow standalone > airflow.log 2>&1 &
 
-echo "Airflow DAG deployed and services restarted!"
-echo "Visit http://localhost:8081 to see your ML pipeline DAG"
+echo "✅ Airflow started in standalone mode!"
+echo "Visit http://localhost:8080 to see your ML pipeline DAG"
+echo "Check logs: tail -f $AIRFLOW_HOME/airflow.log"
+
+# Wait and check if it's running
+sleep 5
+if pgrep -f "airflow" > /dev/null; then
+    echo "✅ Airflow processes are running"
+else
+    echo "❌ Airflow failed to start, check logs"
+fi
