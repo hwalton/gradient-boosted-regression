@@ -32,8 +32,8 @@
 `airflow db init`
 
 ## Start Airflow webserver and scheduler
-airflow webserver --port 8081 --daemon
-airflow scheduler --daemon
+airflow webserver --port 8081
+airflow scheduler
 
 # Kubernetes Setup
 ./scripts/rebuild-deployments.sh
