@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: serving-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: serving
+  template:
+    metadata:
+      labels:
+        app: serving
+    spec:
+      containers:
+      - name: serving
+        image: gbr-serve:latest
+        imagePullPolicy: Never
+        env:
+        - name: MODEL_PATH
+          value: "/app/shared/models/gbr.joblib"
+        - name: PREPROC_PATH
+          value: "/app/shared/models/preprocessor.joblib"
+        - name: PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: shared-storage
+          mountPath: /app/shared
+        workingDir: /app
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: shared-storage
+        persistentVolumeClaim:
+          claimName: ml-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: serving-service
+spec:
+  selector:
+    app: serving
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP

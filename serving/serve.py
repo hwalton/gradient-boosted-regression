@@ -10,9 +10,9 @@ from flask import Flask, request, jsonify
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Paths (match training/data defaults)
-MODEL_PATH = os.environ.get("MODEL_PATH", "models/gbr.joblib")
-PREPROC_PATH = os.environ.get("PREPROC_PATH", "models/preprocessor.joblib")
+# Paths (match training/data defaults) - updated for shared volume
+MODEL_PATH = os.environ.get("MODEL_PATH", "/app/shared/models/gbr.joblib")
+PREPROC_PATH = os.environ.get("PREPROC_PATH", "/app/shared/models/preprocessor.joblib")
 
 app = Flask(__name__)
 
@@ -62,6 +62,8 @@ def health():
         "status": "ok" if MODEL is not None and PREPROC is not None else "uninitialized",
         "model_loaded": MODEL is not None,
         "preprocessor_loaded": PREPROC is not None,
+        "model_path": MODEL_PATH,
+        "preproc_path": PREPROC_PATH,
     })
 
 def _ensure_df(payload: Any) -> pd.DataFrame:
