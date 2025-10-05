@@ -1,31 +1,33 @@
 # Gradient Boosted Regression
 
-# Setup
+### Setup Kubernetes Cluster
 
-1. Ensure you have a Kaggle account and have set up your API token as per [Kaggle API documentation](https://www.kaggle.com/docs/api#authentication).
+```
+minikube start
+```
 
-2. Set up and activate Conda environment:
-   ```bash
-   conda env create -f conda.yml
-   conda activate gradient-boosted-regressor
-   ```
+### Setup ML Pipelines
+```
+./scripts/rebuild-kube.sh
+```
 
-3. Launch MLflow UI:
-   ```bash
-   mlflow ui --port 5000 --host 127.0.0.1
-   ```
-   Access the UI at `http://localhost:5000`.
+### Setup Airflow
 
-# Install airflow
+```
+./scripts/install-airflow.sh
+./scripts/rebuild-airflow.sh
+```
 
-## Download tar
-https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html
+find the admin password with:
+```
+kubectl logs deployment/airflow-standalone | grep -A 5 -B 5 "admin"
+```
 
-## Create and activate a new virtual environment
-`python -m venv airvenv`
-`source airvenv/bin/activate`
+### Run data processing:
+```
+./scripts/data-processing-job.sh
+```
 
-## Run install script
-./scripts/install_airflow.sh
-
-##
+### Run training job:
+```
+./scripts/training-job.sh
