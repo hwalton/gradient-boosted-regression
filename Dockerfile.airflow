@@ -1,4 +1,13 @@
 FROM apache/airflow:3.1.0
 
+# Switch to root to install system packages if needed
+USER root
+
+# Switch back to airflow user for pip installs
+USER airflow
+
+# Install kubernetes Python client
+RUN pip install --no-cache-dir kubernetes==29.0.0
+
 # Copy DAGs
 COPY airflow/dags/ /opt/airflow/dags/

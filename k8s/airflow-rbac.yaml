@@ -4,6 +4,7 @@ metadata:
   namespace: default
   name: airflow-worker-role
 rules:
+# Core API group permissions (existing)
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
@@ -16,6 +17,17 @@ rules:
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["list"]
+# Apps API group permissions (ADDED - needed for deployments)
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get", "list", "watch"]
+# Batch API group permissions (for jobs if needed)
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
