@@ -62,7 +62,7 @@ spec:
     spec:
       containers:
       - name: airflow
-        image: apache/airflow:2.10.0  # Use stable version
+        image: apache/airflow:3.1.0
         command: ["airflow"]
         args: ["standalone"]
         ports:
@@ -94,45 +94,22 @@ spec:
         image: registry.k8s.io/git-sync/git-sync:v4.0.0
         env:
         - name: GITSYNC_REPO
-          value: "https://github.com/hwalton/gradient-boosted-regression.git"
+          value: "https://github.com/hwalton/gradient-boosted-regression.git"  # Update this!
         - name: GITSYNC_REF
           value: "master"
         - name: GITSYNC_PERIOD
           value: "60s"
         - name: GITSYNC_ROOT
-          value: /tmp/git-repo  # Changed: sync to temp location
-        command:
-        - /bin/sh
-        - -c
-        - |
-          # Start git-sync in background
-          /git-sync &
-          
-          # Wait for initial sync
-          sleep 10
-          
-          # Copy DAGs and keep monitoring
-          while true; do
-            if [ -d "/tmp/git-repo/gradient-boosted-regression/airflow/dags" ]; then
-              echo "Syncing DAGs from Git..."
-              cp -r /tmp/git-repo/gradient-boosted-regression/airflow/dags/* /opt/airflow/dags/ 2>/dev/null || true
-              echo "DAGs synced at $(date)"
-            else
-              echo "Waiting for git-sync to complete..."
-            fi
-            sleep 60
-          done
+          value: /opt/airflow/dags
+        - name: GITSYNC_SUBPATH
+          value: "airflow/dags"
         volumeMounts:
-        - name: git-volume
-          mountPath: /tmp/git-repo
         - name: dags-volume
           mountPath: /opt/airflow/dags
       volumes:
       - name: airflow-home
         emptyDir: {}
       - name: dags-volume
-        emptyDir: {}
-      - name: git-volume  # Add this
         emptyDir: {}
       - name: shared-storage
         persistentVolumeClaim:
