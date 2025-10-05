@@ -1,0 +1,46 @@
+# Create k8s/airflow-values.yaml
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "13"
+  auth:
+    postgresPassword: "airflow123"
+    username: "airflow" 
+    password: "airflow123"
+    database: "airflow"
+
+# Use LocalExecutor to simplify
+executor: "LocalExecutor"
+
+# Disable Redis since we're using LocalExecutor
+redis:
+  enabled: false
+
+# Simplified config
+config:
+  AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'True'
+
+# Webserver service
+webserver:
+  service:
+    type: NodePort
+
+# Disable DAG persistence for now
+dags:
+  persistence:
+    enabled: false
+
+# Use smaller resource requests
+scheduler:
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+
+webserver:
+  resources:
+    requests:
+      memory: "512Mi" 
+      cpu: "250m"
