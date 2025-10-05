@@ -1,0 +1,4 @@
+FROM apache/airflow:3.1.0
+
+# Copy DAGs
+COPY airflow/dags/ /opt/airflow/dags/

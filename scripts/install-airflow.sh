@@ -12,6 +12,11 @@ kubectl delete deployment airflow-postgresql --ignore-not-found=true
 kubectl delete service airflow-webserver --ignore-not-found=true
 kubectl delete service airflow-postgresql --ignore-not-found=true
 
+
+# Build Airflow Docker image
+eval $(minikube docker-env)
+docker build -f Dockerfile.airflow -t gbr-airflow:latest .
+
 # Deploy Airflow in default namespace
 kubectl apply -f k8s/airflow-rbac.yaml
 kubectl apply -f k8s/airflow-simple.yaml
