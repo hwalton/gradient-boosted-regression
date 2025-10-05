@@ -23,6 +23,9 @@ kubectl cp airflow/dags/ml_pipeline_dag.py $POD_NAME:/opt/airflow/dags/
 
 echo "✅ DAG uploaded successfully"
 
+# Reserialize DAGs
+kubectl exec $POD_NAME -- airflow dags reserialize &> /dev/null
+
 # Check for import errors
 echo "Checking for import errors..."
 kubectl exec $POD_NAME -- airflow dags list-import-errors

@@ -16,6 +16,12 @@ kubectl delete service airflow-postgresql --ignore-not-found=true
 kubectl apply -f k8s/airflow-rbac.yaml
 kubectl apply -f k8s/airflow-simple.yaml
 
+# Get the pod name
+POD_NAME=$(kubectl get pods -l app=airflow-standalone -o jsonpath='{.items[0].metadata.name}')
+
+# Initialize the database
+kubectl exec $POD_NAME -- airflow db migrate > /dev/null
+
 echo "Waiting for Airflow to be ready..."
 kubectl wait --for=condition=available deployment/airflow-standalone --timeout=600s
 
