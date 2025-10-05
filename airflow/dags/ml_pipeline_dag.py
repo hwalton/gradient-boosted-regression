@@ -50,34 +50,46 @@ volume = k8s.V1Volume(
 
 def check_performance_status(**context):
     """Check performance monitoring report and decide next step"""
+    print("=== PERFORMANCE CHECK DEBUG START ===")
+    
     performance_report_path = "/app/shared/monitoring/model_performance_report.json"
     
     # For local testing, use a different path
     if not os.path.exists(performance_report_path):
         performance_report_path = "shared/monitoring/model_performance_report.json"
     
+    print(f"Looking for performance report at: {performance_report_path}")
+    
     if not os.path.exists(performance_report_path):
         print("No performance report found, proceeding with retraining")
+        print("RETURNING: full_retrain_pipeline")
         return 'full_retrain_pipeline'
     
     try:
         with open(performance_report_path, 'r') as f:
             performance_report = json.load(f)
         
+        print(f"Performance report contents: {performance_report}")
+        
         overall_degraded = performance_report.get('overall_degraded', False)
         degraded_metrics = performance_report.get('degraded_metrics', [])
         
-        print(f"Performance degraded: {overall_degraded}")
+        print(f"Performance degraded: {overall_degraded} (type: {type(overall_degraded)})")
         print(f"Degraded metrics: {degraded_metrics}")
         
         if overall_degraded:
+            print("RETURNING: full_retrain_pipeline")
             return 'full_retrain_pipeline'
         else:
+            print("RETURNING: skip_retraining")
             return 'skip_retraining'
             
     except Exception as e:
         print(f"Error reading performance report: {e}")
+        print("RETURNING: full_retrain_pipeline (due to error)")
         return 'full_retrain_pipeline'
+    
+    print("=== PERFORMANCE CHECK DEBUG END ===")
 
 # Environment variables
 env_vars = [
@@ -150,7 +162,12 @@ skip_task = BashOperator(
     dag=dag
 )
 
-# TASK DEPENDENCIES:
+# TASK DEPENDENCIES - Updated structure:
 generate_data_task >> performance_monitoring_task >> check_performance_task
-check_performance_task >> [full_retrain_task, skip_task]
+
+# Branch to both tasks (no additional dependencies)
+check_performance_task >> full_retrain_task
+check_performance_task >> skip_task
+
+# Only connect restart_serving after full_retrain
 full_retrain_task >> restart_serving_task

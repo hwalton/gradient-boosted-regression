@@ -41,10 +41,16 @@ except Exception as e:
     exit(1)
 "
 
-# # Kill existing processes
-# pkill -TERM -f airflow
-# sleep 3
-# pkill -9 -f airflow
+# Kill existing Airflow processes more specifically
+echo "Stopping existing Airflow processes..."
+pkill -f "airflow standalone" || true
+pkill -f "airflow webserver" || true  
+pkill -f "airflow scheduler" || true
+pkill -f "airflow api_server" || true
+sleep 3
+
+# Force kill any remaining airflow binaries (not scripts)
+pgrep -f "/.*airflow" | grep -v $$ | xargs kill -9 2>/dev/null || true
 
 
 # Start in standalone mode

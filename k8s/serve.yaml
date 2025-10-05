@@ -23,9 +23,9 @@ spec:
         - name: PREPROC_PATH
           value: "/app/shared/models/preprocessor.joblib"
         - name: PORT
-          value: "8080"
+          value: "8082"
         ports:
-        - containerPort: 8080
+        - containerPort: 8082
         volumeMounts:
         - name: shared-storage
           mountPath: /app/shared
@@ -33,13 +33,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8082
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 8082
           initialDelaySeconds: 5
           periodSeconds: 5
       volumes:
@@ -55,6 +55,6 @@ spec:
   selector:
     app: serving
   ports:
-  - port: 8080
-    targetPort: 8080
+  - port: 8082
+    targetPort: 8082
   type: ClusterIP
