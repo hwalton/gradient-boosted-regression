@@ -50,7 +50,6 @@ volume = k8s.V1Volume(
 
 def check_performance_status(**context):
     """Check performance monitoring report and decide next step"""
-    print("=== PERFORMANCE CHECK DEBUG START ===")
     
     performance_report_path = "/app/shared/monitoring/model_performance_report.json"
     
@@ -89,8 +88,6 @@ def check_performance_status(**context):
         print("RETURNING: full_retrain_pipeline (due to error)")
         return 'full_retrain_pipeline'
     
-    print("=== PERFORMANCE CHECK DEBUG END ===")
-
 # Environment variables
 env_vars = [
     k8s.V1EnvVar(name='MLFLOW_TRACKING_URI', value='http://mlflow-service:5000')
