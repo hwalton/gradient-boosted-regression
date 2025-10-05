@@ -1,73 +1,31 @@
 #!/bin/bash
+# Create scripts/upload-dag.sh
 
-echo "Deploying Airflow DAG..."
+echo "Uploading DAG to Airflow..."
 
-# Set Airflow home
-export AIRFLOW_HOME=/home/${USER}/airflow
-export AIRFLOW__CORE__LOAD_EXAMPLES=False
+POD_NAME=$(kubectl get pods -n airflow -l app=airflow-standalone -o jsonpath='{.items[0].metadata.name}')
 
-# Activate environment
-source airvenv/bin/activate
-
-# Test the correct import path (don't test the wrong one anymore)
-echo "Testing Kubernetes provider import..."
-python -c "
-try:
-    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-    print('✅ Kubernetes provider available')
-except ImportError as e:
-    print(f'❌ Import failed: {e}')
-    exit(1)
-"
-
-# Copy DAG to Airflow
-mkdir -p $AIRFLOW_HOME/dags
-cp -r airflow/dags/* $AIRFLOW_HOME/dags/
-
-echo "DAG copied to $AIRFLOW_HOME/dags/"
-
-# Test DAG import after fixing
-echo "Testing DAG import..."
-cd $AIRFLOW_HOME
-python -c "
-import sys
-sys.path.append('dags')
-try:
-    import ml_pipeline_dag
-    print('✅ DAG imports successfully')
-except Exception as e:
-    print(f'❌ DAG import failed: {e}')
-    print('Check the import paths in your DAG file')
-    exit(1)
-"
-
-# Kill existing Airflow processes more specifically
-echo "Stopping existing Airflow processes..."
-pkill -f "airflow standalone" || true
-pkill -f "airflow webserver" || true  
-pkill -f "airflow scheduler" || true
-pkill -f "airflow api_server" || true
-sleep 3
-
-# Force kill any remaining airflow binaries (not scripts)
-pgrep -f "/.*airflow" | grep -v $$ | xargs kill -9 2>/dev/null || true
-
-
-# Start in standalone mode
-echo "Starting Airflow in standalone mode..."
-cd $AIRFLOW_HOME
-
-# Run standalone in background
-nohup airflow standalone > airflow.log 2>&1 &
-
-echo "✅ Airflow started in standalone mode!"
-echo "Visit http://localhost:8080 to see your ML pipeline DAG"
-echo "Check logs: tail -f $AIRFLOW_HOME/airflow.log"
-
-# Wait and check if it's running
-sleep 5
-if pgrep -f "airflow" > /dev/null; then
-    echo "✅ Airflow processes are running"
-else
-    echo "❌ Airflow failed to start, check logs"
+if [ -z "$POD_NAME" ]; then
+    echo "❌ No Airflow pod found"
+    exit 1
 fi
+
+echo "Found Airflow pod: $POD_NAME"
+
+# Create dags directory if it doesn't exist
+echo "Creating dags directory..."
+kubectl exec -n airflow $POD_NAME -- mkdir -p /opt/airflow/dags
+
+# Copy the DAG
+echo "Copying DAG to Airflow pod..."
+kubectl cp airflow/dags/ml_pipeline_dag.py airflow/$POD_NAME:/opt/airflow/dags/
+
+echo "✅ DAG uploaded successfully"
+
+# Check if it was detected
+echo "Checking if DAG is detected..."
+sleep 5
+kubectl exec -n airflow $POD_NAME -- airflow dags list | grep ml_pipeline_with_performance_monitoring || echo "DAG not detected yet, may take a few minutes..."
+
+echo "🌐 Access Airflow UI at: http://localhost:8080"
+echo "📝 Port forward command: kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow"

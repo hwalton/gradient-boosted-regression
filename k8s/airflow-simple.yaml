@@ -1,9 +1,57 @@
-# Create k8s/simple-airflow.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: airflow
 ---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-postgresql
+  namespace: airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-postgresql
+  template:
+    metadata:
+      labels:
+        app: airflow-postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgres:13
+        env:
+        - name: POSTGRES_DB
+          value: "airflow"
+        - name: POSTGRES_USER
+          value: "airflow"
+        - name: POSTGRES_PASSWORD
+          value: "airflow123"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        emptyDir: {}
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-postgresql
+  namespace: airflow
+spec:
+  selector:
+    app: airflow-postgresql
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# Airflow Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,7 +69,7 @@ spec:
     spec:
       containers:
       - name: airflow
-        image: apache/airflow:2.7.3
+        image: apache/airflow:3.1.0
         command: ["airflow"]
         args: ["standalone"]
         ports:
@@ -29,15 +77,24 @@ spec:
         env:
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "False"
-        - name: AIRFLOW__CORE__EXECUTOR
-          value: "SequentialExecutor"
+        - name: AIRFLOW__CORE__EXECUTOR  
+          value: "LocalExecutor"  # Can use LocalExecutor with PostgreSQL
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-          value: "sqlite:////opt/airflow/airflow.db"
+          value: "postgresql://airflow:airflow123@airflow-postgresql:5432/airflow"
+        - name: _PIP_ADDITIONAL_REQUIREMENTS
+          value: "apache-airflow-providers-cncf-kubernetes==8.4.0"
         volumeMounts:
         - name: airflow-home
           mountPath: /opt/airflow
         - name: shared-storage
           mountPath: /app/shared
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
       volumes:
       - name: airflow-home
         emptyDir: {}
@@ -45,6 +102,7 @@ spec:
         persistentVolumeClaim:
           claimName: ml-data-pvc
 ---
+# Airflow Service
 apiVersion: v1
 kind: Service
 metadata:
