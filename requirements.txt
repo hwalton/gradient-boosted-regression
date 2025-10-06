@@ -6,3 +6,4 @@ mlflow
 boto3
 flask
 scipy
+pytest
