@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: mlflow
-        image: gbr-ml:latest  # Use custom image
-        imagePullPolicy: Never    # Use local image
+        image: ghcr.io/hwalton/gbr-ml:latest
+        imagePullPolicy: IfNotPresent
         command: ["mlflow", "server"]
         args:
         - "--host=0.0.0.0"

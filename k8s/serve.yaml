@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
       - name: serving
-        image: gbr-ml:latest
-        imagePullPolicy: Never
+        image: ghcr.io/hwalton/gbr-ml:latest
+        imagePullPolicy: IfNotPresent
         command: ["python", "-m", "src.serving.serve"]
         env:
         - name: MODEL_PATH

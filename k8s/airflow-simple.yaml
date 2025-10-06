@@ -62,8 +62,8 @@ spec:
     spec:
       containers:
       - name: airflow
-        image: gbr-airflow:latest
-        imagePullPolicy: Never
+        image: ghcr.io/hwalton/gbr-airflow:latest
+        imagePullPolicy: IfNotPresent
         command: ["airflow"]
         args: ["standalone"]
         ports:

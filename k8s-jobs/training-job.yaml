@@ -8,8 +8,8 @@ spec:
     spec:
       containers:
       - name: trainer
-        image: gbr-ml:latest
-        imagePullPolicy: Never
+        image: ghcr.io/hwalton/gbr-ml:latest
+        imagePullPolicy: IfNotPresent
         command: ["python", "-m", "src.training.train"]
         env:
         - name: MLFLOW_TRACKING_URI
