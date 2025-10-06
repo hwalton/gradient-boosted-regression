@@ -1,11 +1,11 @@
 name: Build and Publish Docker images
 
 on:
-  # push:
-  #   branches:
-  #     - master
-  pull_request:
-    branches: [ master ]
+  push:
+    branches:
+      - master
+  # pull_request:
+  #   branches: [ master ]
 
 permissions:
   contents: read
