@@ -1,0 +1,25 @@
+{{- if .Values.pvc.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ml-data-pv
+spec:
+  capacity:
+    storage: {{ .Values.pvc.size }}
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /tmp/ml-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-data-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.pvc.size }}
+{{- end }}

@@ -1,0 +1,51 @@
+{{- if .Values.serving.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gbr.fullname" . }}-serving
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ include "gbr.fullname" . }}-serving
+  template:
+    metadata:
+      labels:
+        app: {{ include "gbr.fullname" . }}-serving
+    spec:
+      imagePullSecrets:
+{{- toYaml .Values.imagePullSecrets | indent 8 }}
+      containers:
+        - name: serving
+          image: "{{ .Values.image.ml.repository }}:{{ .Values.image.ml.tag }}"
+          imagePullPolicy: {{ .Values.image.ml.pullPolicy }}
+          command: ["python", "-m", "src.serving.serve"]
+          env:
+            - name: MODEL_PATH
+              value: "/app/shared/models/gbr.joblib"
+            - name: PREPROC_PATH
+              value: "/app/shared/models/preprocessor.joblib"
+            - name: PORT
+              value: "{{ .Values.serving.port }}"
+          ports:
+            - containerPort: {{ .Values.serving.port }}
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/shared
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: ml-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gbr.fullname" . }}-serving-service
+spec:
+  selector:
+    app: {{ include "gbr.fullname" . }}-serving
+  ports:
+    - port: {{ .Values.serving.port }}
+      targetPort: {{ .Values.serving.port }}
+  type: ClusterIP
+{{- end }}

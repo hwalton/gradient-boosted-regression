@@ -1,0 +1,43 @@
+replicaCount: 1
+
+image:
+  ml:
+    repository: ghcr.io/hwalton/gbr-ml
+    tag: latest
+    pullPolicy: IfNotPresent
+  airflow:
+    repository: ghcr.io/hwalton/gbr-airflow
+    tag: latest
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: "13"
+    pullPolicy: IfNotPresent
+
+postgres:
+  enabled: true
+  db: airflow
+  user: airflow
+  # Do NOT store real passwords here for production; use external secrets or CI to set this secret
+  password: airflow123
+  pvc: false
+
+airflow:
+  executor: LocalExecutor
+  extraEnv: {}
+  imageSqlAlchemyConn: ""
+
+serving:
+  enabled: true
+  port: 8082
+
+mlflow:
+  enabled: true
+  port: 5000
+
+pvc:
+  enabled: true
+  storageClassName: ""
+  size: 1Gi
+
+imagePullSecrets: []

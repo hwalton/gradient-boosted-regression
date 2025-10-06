@@ -2,7 +2,7 @@
 set -euo pipefail
 
 FILE="scripts/${1:-call.json}"
-URL="${SERVE_URL:-http://127.0.0.1:8080/predict}"
+URL="${SERVE_URL:-ac672901db4c7418f93dcc2a6deba02a-1263538825.eu-west-2.elb.amazonaws.com/predict}"
 
 if [[ ! -f "$FILE" ]]; then
   echo "Error: payload file not found: $FILE" >&2
