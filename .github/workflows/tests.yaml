@@ -34,3 +34,4 @@ jobs:
           pytest -q
         env:
           CI: true
+          PYTHONPATH: ${{ github.workspace }}
