@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "gbr.fullname" . }}-data-processing
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+{{- toYaml .Values.imagePullSecrets | indent 8 }}
+      containers:
+        - name: data-processor
+          image: "{{ .Values.image.ml.repository }}:{{ .Values.image.ml.tag }}"
+          imagePullPolicy: {{ .Values.image.ml.pullPolicy }}
+          command: ["python", "-m", "src.data.data"]
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://{{ include "gbr.fullname" . }}-mlflow-service:{{ .Values.mlflow.port }}"
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/shared
+          workingDir: /app
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: ml-data-pvc
+      restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "gbr.fullname" . }}-training
+spec:
+  template:
+    spec:
+      containers:
+        - name: trainer
+          image: "{{ .Values.image.ml.repository }}:{{ .Values.image.ml.tag }}"
+          imagePullPolicy: {{ .Values.image.ml.pullPolicy }}
+          command: ["python", "-m", "src.training.train"]
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://{{ include "gbr.fullname" . }}-mlflow-service:{{ .Values.mlflow.port }}"
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/shared
+          workingDir: /app
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: ml-data-pvc
+      restartPolicy: Never

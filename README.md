@@ -31,3 +31,9 @@ kubectl logs deployment/airflow-standalone | grep -A 5 -B 5 "admin"
 ### Run training job:
 ```
 ./scripts/training-job.sh
+
+### Run tests:
+```
+source venv/bin/activate
+python -m pytest -q
+```

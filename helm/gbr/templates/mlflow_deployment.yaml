@@ -1,0 +1,47 @@
+{{- if .Values.mlflow.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gbr.fullname" . }}-mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "gbr.fullname" . }}-mlflow
+  template:
+    metadata:
+      labels:
+        app: {{ include "gbr.fullname" . }}-mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: "{{ .Values.image.ml.repository }}:{{ .Values.image.ml.tag }}"
+          imagePullPolicy: {{ .Values.image.ml.pullPolicy }}
+          command: ["mlflow", "server"]
+          args:
+            - "--host=0.0.0.0"
+            - "--port={{ .Values.mlflow.port }}"
+            - "--backend-store-uri=sqlite:////app/shared/mlflow.db"
+            - "--default-artifact-root=/app/shared/artifacts"
+          ports:
+            - containerPort: {{ .Values.mlflow.port }}
+          volumeMounts:
+            - name: shared-data
+              mountPath: /app/shared
+      volumes:
+        - name: shared-data
+          persistentVolumeClaim:
+            claimName: ml-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gbr.fullname" . }}-mlflow-service
+spec:
+  selector:
+    app: {{ include "gbr.fullname" . }}-mlflow
+  ports:
+    - port: {{ .Values.mlflow.port }}
+      targetPort: {{ .Values.mlflow.port }}
+  type: ClusterIP
+{{- end }}

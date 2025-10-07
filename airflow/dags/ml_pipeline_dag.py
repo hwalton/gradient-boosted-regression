@@ -5,8 +5,10 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 # Updated import paths for Airflow 3.x
 from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 # Import Kubernetes objects
 from kubernetes.client import models as k8s
+from kubernetes import client, config
 import json
 import os
 
@@ -50,7 +52,6 @@ volume = k8s.V1Volume(
 
 def check_performance_status(**context):
     """Check performance monitoring report and decide next step"""
-    print("=== PERFORMANCE CHECK DEBUG START ===")
     
     performance_report_path = "/app/shared/monitoring/model_performance_report.json"
     
@@ -88,9 +89,59 @@ def check_performance_status(**context):
         print(f"Error reading performance report: {e}")
         print("RETURNING: full_retrain_pipeline (due to error)")
         return 'full_retrain_pipeline'
-    
-    print("=== PERFORMANCE CHECK DEBUG END ===")
 
+# Add this function after the other functions
+def restart_deployment(**context):
+    """Restart the serving deployment using Kubernetes API"""
+    try:
+        # Load in-cluster config (since we're running inside k8s)
+        config.load_incluster_config()
+        
+        # Create API client
+        apps_v1 = client.AppsV1Api()
+        
+        deployment_name = "serving-deployment"
+        namespace = "default"
+        
+        print(f"Attempting to restart deployment {deployment_name} in namespace {namespace}")
+        
+        # Get current deployment
+        try:
+            deployment = apps_v1.read_namespaced_deployment(
+                name=deployment_name,
+                namespace=namespace
+            )
+            print(f"Found deployment {deployment_name}")
+        except Exception as e:
+            print(f"Deployment {deployment_name} not found: {e}")
+            print("Available deployments:")
+            deployments = apps_v1.list_namespaced_deployment(namespace=namespace)
+            for dep in deployments.items:
+                print(f"  - {dep.metadata.name}")
+            raise
+        
+        # Add restart annotation to trigger rollout
+        if not deployment.spec.template.metadata.annotations:
+            deployment.spec.template.metadata.annotations = {}
+            
+        deployment.spec.template.metadata.annotations[
+            "kubectl.kubernetes.io/restartedAt"
+        ] = datetime.now().isoformat()
+        
+        # Update deployment
+        apps_v1.patch_namespaced_deployment(
+            name=deployment_name,
+            namespace=namespace,
+            body=deployment
+        )
+        
+        print(f"Successfully restarted deployment {deployment_name}")
+        return f"Deployment {deployment_name} restarted successfully"
+        
+    except Exception as e:
+        print(f"Error restarting deployment: {e}")
+        raise
+    
 # Environment variables
 env_vars = [
     k8s.V1EnvVar(name='MLFLOW_TRACKING_URI', value='http://mlflow-service:5000')
@@ -148,10 +199,10 @@ full_retrain_task = KubernetesPodOperator(
     dag=dag
 )
 
-# 4b. Restart Serving (to use new model)
-restart_serving_task = BashOperator(
+# 4b. Restart Serving (using Kubernetes API)
+restart_serving_task = PythonOperator(
     task_id='restart_serving',
-    bash_command='kubectl rollout restart deployment/serving-deployment',
+    python_callable=restart_deployment,
     dag=dag
 )
 

@@ -62,7 +62,8 @@ spec:
     spec:
       containers:
       - name: airflow
-        image: apache/airflow:3.1.0
+        image: ghcr.io/hwalton/gbr-airflow:latest
+        imagePullPolicy: IfNotPresent
         command: ["airflow"]
         args: ["standalone"]
         ports:
@@ -77,8 +78,6 @@ spec:
         - name: _PIP_ADDITIONAL_REQUIREMENTS
           value: "apache-airflow-providers-cncf-kubernetes==8.4.0"
         volumeMounts:
-        - name: airflow-home
-          mountPath: /opt/airflow
         - name: shared-storage
           mountPath: /app/shared
         resources:

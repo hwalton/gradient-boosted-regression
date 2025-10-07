@@ -8,8 +8,8 @@ spec:
     spec:
       containers:
       - name: data-processor
-        image: gbr-ml:latest
-        imagePullPolicy: Never
+        image: ghcr.io/hwalton/gbr-ml:latest
+        imagePullPolicy: IfNotPresent
         command: ["python", "-m", "src.data.data"]
         env:
         - name: MLFLOW_TRACKING_URI

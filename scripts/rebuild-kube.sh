@@ -3,9 +3,10 @@
 # Set minikube docker environment
 eval $(minikube docker-env)
 
-# Build Docker images
-echo "Building Docker images..."
-docker build -f Dockerfile -t gbr-ml:latest .
+# # Build Docker images
+# echo "Building Docker images..."
+# docker build -f Dockerfile -t gbr-ml:latest .
+
 kubectl delete job data-processing-job
 kubectl delete job training-job
 

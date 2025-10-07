@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 # Add project root to path so we can import our modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from data.data import get_data, simulate_inflation
+from src.data.data import get_data, simulate_inflation
 
 class TestInflationSimulation:
     
