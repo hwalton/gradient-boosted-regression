@@ -3,7 +3,7 @@ name: Build and Publish Docker images
 on:
   push:
     branches:
-      - feature/aws-eks2
+      - master
   # pull_request:
   #   branches: [ master ]
 
