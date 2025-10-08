@@ -24,6 +24,9 @@ fi
 : "${AWS_REGION:=eu-west-2}"
 export AWS_REGION
 
+JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION=1
+export JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION
+
 echo "Bootstrapping CDK in account/region (may prompt)..."
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 cdk bootstrap aws://${ACCOUNT}/${AWS_REGION}
@@ -31,5 +34,5 @@ cdk bootstrap aws://${ACCOUNT}/${AWS_REGION}
 echo "Synthesizing..."
 cdk synth
 
-echo "Deploying (stack: InfrastructureStack)..."
-cdk deploy InfrastructureStack --require-approval never
+echo "Deploying (stack: InfrastructureStack10)..."
+cdk deploy InfrastructureStack10 --require-approval never

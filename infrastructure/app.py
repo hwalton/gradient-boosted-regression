@@ -2,7 +2,7 @@
 import os
 import aws_cdk as cdk
 
-from infrastructure.infrastructure_stack import InfrastructureStack
+from infrastructure.infrastructure_stack import InfrastructureStack10
 
 app = cdk.App()
 
@@ -17,8 +17,8 @@ account = os.getenv("CDK_DEFAULT_ACCOUNT") or os.getenv("AWS_ACCOUNT_ID")
 env = cdk.Environment(account=account, region=region) if account else None
 
 # Prefer env var for cluster name (avoid app.node.try_get_context which triggers constructs typeguard issues)
-cluster_name = os.getenv("CLUSTER_NAME") or "gbr-cluster5"
+cluster_name = os.getenv("CLUSTER_NAME") or "gbr-cluster10"
 
-InfrastructureStack(app, "InfrastructureStack", env=env, cluster_name=cluster_name)
+InfrastructureStack10(app, "InfrastructureStack10", env=env, cluster_name=cluster_name)
 
 app.synth()

@@ -9,7 +9,9 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-class InfrastructureStack(Stack):
+from aws_cdk.lambda_layer_kubectl_v32 import KubectlV32Layer
+
+class InfrastructureStack10(Stack):
     def __init__(
         self,
         scope: Construct,
@@ -24,21 +26,21 @@ class InfrastructureStack(Stack):
             cluster_name
             or os.getenv("CLUSTER_NAME")
             or os.getenv("CDK_CLUSTER_NAME")
-            or "gbr-cluster5"
+            or "gbr-cluster10"
         )
 
-        # VPC for cluster
-        vpc = ec2.Vpc(self, "GBRVpc", max_azs=2, nat_gateways=1)
-
-        # EKS cluster (no default nodes) with explicit name
         cluster = eks.Cluster(
             self,
             "GBRCluster",
-            vpc=vpc,
+            vpc=ec2.Vpc(self, "GBRVpc", max_azs=2, nat_gateways=1),
             default_capacity=0,
-            version=eks.KubernetesVersion.V1_24,
+            version=eks.KubernetesVersion.V1_32,
             cluster_name=cluster_name,
+            kubectl_layer=KubectlV32Layer(self, "kubectl")
         )
+
+
+
 
         # Managed nodegroup (adjust instance type/size to your needs)
         cluster.add_nodegroup_capacity(
@@ -46,22 +48,7 @@ class InfrastructureStack(Stack):
             desired_size=2,
             min_size=1,
             max_size=3,
-            instance_types=[ec2.InstanceType("t3.medium")],
-        )
-
-        # Install local Helm chart located at ../helm/gbr (relative to infrastructure/ directory)
-        chart_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "helm", "gbr")
-        )
-
-        eks.HelmChart(
-            self,
-            "GBRHelmChart",
-            cluster=cluster,
-            chart=chart_dir,
-            release="gbr",
-            namespace="default",
-            create_namespace=False,
+            instance_types=[ec2.InstanceType("t3.small")],
         )
 
         # Useful outputs
