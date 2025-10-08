@@ -1,5 +1,10 @@
 # Gradient Boosted Regression
 
+This project deploys a Scikit-Learn Gradient Boosted Regression model of the California housing dataset, with data processing and training pipelines, and a Flask API to call the model for predictions.
+
+It integrates MLflow, Apache Airflow, Docker, Helm, and Kubernetes for orchestration and deployment.
+
+
 ### Setup Kubernetes Cluster
 
 ```
@@ -31,6 +36,7 @@ kubectl logs deployment/airflow-standalone | grep -A 5 -B 5 "admin"
 ### Run training job:
 ```
 ./scripts/training-job.sh
+```
 
 ### Run tests:
 ```
