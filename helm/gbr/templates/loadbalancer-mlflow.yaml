@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mlflow
+  labels:
+    app: {{ .Release.Name }}-mlflow
+  annotations:
+{{ toYaml .Values.mlflow.service.annotations | indent 4 }}
+spec:
+  type: {{ .Values.mlflow.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.mlflow.service.port }}
+      targetPort: {{ .Values.mlflow.service.targetPort | default .Values.mlflow.service.port }}
+  selector:
+    app: {{ .Release.Name }}-mlflow

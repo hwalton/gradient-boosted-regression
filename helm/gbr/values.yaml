@@ -26,14 +26,32 @@ airflow:
   executor: LocalExecutor
   extraEnv: {}
   imageSqlAlchemyConn: ""
+  service:
+    enabled: true
+    type: LoadBalancer
+    port: 8080
+    targetPort: 8080
+    annotations: {}
 
 serving:
   enabled: true
   port: 8082
+  service:
+    enabled: true
+    type: LoadBalancer
+    port: 8082
+    targetPort: 8082
+    annotations: {}
 
 mlflow:
   enabled: true
   port: 5000
+  service:
+    enabled: true
+    type: LoadBalancer
+    port: 5000
+    targetPort: 5000
+    annotations: {}
 
 pvc:
   enabled: true
